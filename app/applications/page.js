@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { createClient } from "@supabase/supabase-js";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
+import timeGridPlugin from "@fullcalendar/timegrid"; // Import timeGridPlugin
 import interactionPlugin from "@fullcalendar/interaction";
 
 // Initialize Supabase client
@@ -18,6 +19,7 @@ const ApprovedArrangements = () => {
     const [error, setError] = useState(null);
     const [selectedDates, setSelectedDates] = useState([]);
     const [statusMessage, setStatusMessage] = useState(null);
+    const [isError, setIsError] = useState(false); // New state for error flag
 
     useEffect(() => {
         fetchApprovedArrangements();
@@ -27,6 +29,7 @@ const ApprovedArrangements = () => {
         try {
             setLoading(true);
             setStatusMessage("Fetching approved arrangements...");
+            setIsError(false); // Reset error flag
             const { data, error } = await supabase
                 .from("arrangement")
                 .select(`*,employee:staff_id (staff_fname, staff_lname)`)
@@ -43,6 +46,7 @@ const ApprovedArrangements = () => {
             setError("Failed to fetch approved arrangements");
             console.error("Error:", error);
             setStatusMessage("Error fetching approved arrangements.");
+            setIsError(true); // Set error flag
         } finally {
             setLoading(false);
             setTimeout(() => setStatusMessage(null), 3000);
@@ -83,6 +87,7 @@ const ApprovedArrangements = () => {
 
         if (date < today) {
             setStatusMessage("Cannot select past dates.");
+            setIsError(true); // Optional: Indicate this is an error
             setTimeout(() => setStatusMessage(null), 3000);
             return;
         }
@@ -99,12 +104,14 @@ const ApprovedArrangements = () => {
             setStatusMessage(
                 `Unselected ${new Date(clickedDate).toLocaleDateString()}`
             );
+            setIsError(false); // Assuming unselecting is not an error
             setTimeout(() => setStatusMessage(null), 3000);
         } else {
             setSelectedDates([...selectedDates, clickedDate]);
             setStatusMessage(
                 `Selected ${new Date(clickedDate).toLocaleDateString()}`
             );
+            setIsError(false); // Assuming selecting is successful
             setTimeout(() => setStatusMessage(null), 3000);
         }
     };
@@ -147,6 +154,7 @@ const ApprovedArrangements = () => {
             setStatusMessage(
                 "No new dates were selected (possible conflicts or past dates)."
             );
+            setIsError(true); // Indicate this is an error
             setTimeout(() => setStatusMessage(null), 3000);
             return;
         }
@@ -157,6 +165,7 @@ const ApprovedArrangements = () => {
                 .map((d) => new Date(d).toLocaleDateString())
                 .join(", ")}`
         );
+        setIsError(false); // Assuming successful selection
 
         selectInfo.view.calendar.unselect();
         setTimeout(() => setStatusMessage(null), 5000);
@@ -191,25 +200,10 @@ const ApprovedArrangements = () => {
         <div>
             <h2>Approved Arrangements</h2>
 
-            {/* Status Message */}
-            {statusMessage && (
-                <p
-                    style={{
-                        color:
-                            statusMessage.includes("Error") ||
-                            statusMessage.includes("Failed")
-                                ? "red"
-                                : "green",
-                    }}
-                >
-                    {statusMessage}
-                </p>
-            )}
-
             {/* FullCalendar Integration */}
             <div style={{ marginBottom: "2rem" }}>
                 <FullCalendar
-                    plugins={[dayGridPlugin, interactionPlugin]}
+                    plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]} // Include timeGridPlugin
                     initialView="dayGridMonth"
                     events={events}
                     selectable={true}
@@ -238,11 +232,18 @@ const ApprovedArrangements = () => {
                     headerToolbar={{
                         left: "prev,next today",
                         center: "title",
-                        right: "dayGridMonth,dayGridWeek,dayGridDay",
+                        right: "dayGridMonth,timeGridWeek,timeGridDay", // Corrected view names
                     }}
                     height="auto"
                 />
             </div>
+
+            {/* Status Message */}
+            {statusMessage && (
+                <p style={{ color: isError ? "red" : "green" }}>
+                    {statusMessage}
+                </p>
+            )}
 
             {/* Selected Dates */}
             <div style={{ marginBottom: "1rem" }}>
