@@ -1,65 +1,57 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { createClient } from "@supabase/supabase-js";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
-import timeGridPlugin from "@fullcalendar/timegrid"; // Import timeGridPlugin
+import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import listPlugin from "@fullcalendar/list"; // Import listPlugin for list views
+import styles from "../styles/applications.module.css"; // Import the CSS module
 
-// Initialize Supabase client
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_KEY
-);
+import {
+    fetchApprovedArrangements,
+    formatDate,
+} from "../api/applications/route.js"; // Import service functions
 
 const ApprovedArrangements = () => {
+    // State Variables
     const [arrangements, setArrangements] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selectedDates, setSelectedDates] = useState([]);
     const [statusMessage, setStatusMessage] = useState(null);
-    const [isError, setIsError] = useState(false); // New state for error flag
+    const [isError, setIsError] = useState(false);
 
+    // Fetch Data on Component Mount
     useEffect(() => {
-        fetchApprovedArrangements();
+        const getData = async () => {
+            try {
+                setLoading(true);
+                setStatusMessage("Fetching approved arrangements...");
+                setIsError(false);
+                const { data, error } = await fetchApprovedArrangements();
+
+                if (error) throw error;
+
+                console.log("Fetched data:", data);
+
+                setArrangements(data);
+                setStatusMessage("Successfully fetched approved arrangements.");
+            } catch (error) {
+                setError("Failed to fetch approved arrangements");
+                console.error("Error:", error);
+                setStatusMessage("Error fetching approved arrangements.");
+                setIsError(true);
+            } finally {
+                setLoading(false);
+                setTimeout(() => setStatusMessage(null), 3000);
+            }
+        };
+
+        getData();
     }, []);
 
-    const fetchApprovedArrangements = async () => {
-        try {
-            setLoading(true);
-            setStatusMessage("Fetching approved arrangements...");
-            setIsError(false); // Reset error flag
-            const { data, error } = await supabase
-                .from("arrangement")
-                .select(`*,employee:staff_id (staff_fname, staff_lname)`)
-                .eq("status", "approved")
-                .order("date", { ascending: true });
-
-            if (error) throw error;
-
-            console.log("Fetched data:", data);
-
-            setArrangements(data);
-            setStatusMessage("Successfully fetched approved arrangements.");
-        } catch (error) {
-            setError("Failed to fetch approved arrangements");
-            console.error("Error:", error);
-            setStatusMessage("Error fetching approved arrangements.");
-            setIsError(true); // Set error flag
-        } finally {
-            setLoading(false);
-            setTimeout(() => setStatusMessage(null), 3000);
-        }
-    };
-
-    const formatDate = (date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
-        return `${year}-${month}-${day}`;
-    };
-
+    // Event Data for FullCalendar
     const events = useMemo(() => {
         return arrangements.map((arrangement) => ({
             id: arrangement.arrangement_id.toString(),
@@ -77,6 +69,7 @@ const ApprovedArrangements = () => {
         }));
     }, [arrangements]);
 
+    // Handler for Date Click
     const handleDateClick = (dateInfo) => {
         console.log("Date clicked:", dateInfo.date);
         const clickedDate = formatDate(dateInfo.date);
@@ -87,7 +80,7 @@ const ApprovedArrangements = () => {
 
         if (date < today) {
             setStatusMessage("Cannot select past dates.");
-            setIsError(true); // Optional: Indicate this is an error
+            setIsError(true);
             setTimeout(() => setStatusMessage(null), 3000);
             return;
         }
@@ -104,18 +97,19 @@ const ApprovedArrangements = () => {
             setStatusMessage(
                 `Unselected ${new Date(clickedDate).toLocaleDateString()}`
             );
-            setIsError(false); // Assuming unselecting is not an error
+            setIsError(false);
             setTimeout(() => setStatusMessage(null), 3000);
         } else {
             setSelectedDates([...selectedDates, clickedDate]);
             setStatusMessage(
                 `Selected ${new Date(clickedDate).toLocaleDateString()}`
             );
-            setIsError(false); // Assuming selecting is successful
+            setIsError(false);
             setTimeout(() => setStatusMessage(null), 3000);
         }
     };
 
+    // Handler for Range Selection
     const handleSelect = (selectInfo) => {
         const { start, end } = selectInfo;
 
@@ -154,7 +148,7 @@ const ApprovedArrangements = () => {
             setStatusMessage(
                 "No new dates were selected (possible conflicts or past dates)."
             );
-            setIsError(true); // Indicate this is an error
+            setIsError(true);
             setTimeout(() => setStatusMessage(null), 3000);
             return;
         }
@@ -165,17 +159,19 @@ const ApprovedArrangements = () => {
                 .map((d) => new Date(d).toLocaleDateString())
                 .join(", ")}`
         );
-        setIsError(false); // Assuming successful selection
+        setIsError(false);
 
         selectInfo.view.calendar.unselect();
         setTimeout(() => setStatusMessage(null), 5000);
     };
 
+    // Handler for Submit Button
     const handleSubmit = () => {
         console.log("Submit button clicked. Selected dates:", selectedDates);
         // Future implementation goes here
     };
 
+    // Function to Allow Selection Only for Future Dates
     const selectAllow = (selectInfo) => {
         const { start } = selectInfo;
         const today = new Date();
@@ -188,22 +184,29 @@ const ApprovedArrangements = () => {
         return true;
     };
 
+    // Convert Selected Dates to a Set for Efficient Lookup
     const selectedDatesSet = useMemo(
         () => new Set(selectedDates),
         [selectedDates]
     );
 
-    if (loading) return <div>Loading...</div>;
-    if (error) return <div>Error: {error}</div>;
+    // Conditional Rendering Based on Loading and Error States
+    if (loading) return <div className={styles.container}>Loading...</div>;
+    if (error) return <div className={styles.container}>Error: {error}</div>;
 
     return (
-        <div>
-            <h2>Approved Arrangements</h2>
+        <div className={styles.container}>
+            <h2 className={styles.header}>Arrangement Application</h2>
 
             {/* FullCalendar Integration */}
-            <div style={{ marginBottom: "2rem" }}>
+            <div className={styles.calendarContainer}>
                 <FullCalendar
-                    plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]} // Include timeGridPlugin
+                    plugins={[
+                        dayGridPlugin,
+                        timeGridPlugin,
+                        interactionPlugin,
+                        listPlugin,
+                    ]} // Include all necessary plugins
                     initialView="dayGridMonth"
                     events={events}
                     selectable={true}
@@ -232,22 +235,31 @@ const ApprovedArrangements = () => {
                     headerToolbar={{
                         left: "prev,next today",
                         center: "title",
-                        right: "dayGridMonth,timeGridWeek,timeGridDay", // Corrected view names
+                        right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek", // Corrected view names and added listWeek
                     }}
                     height="auto"
+                    aspectRatio={1.5} // Adjust aspect ratio as needed
+                    views={{
+                        listWeek: {
+                            buttonText: "List",
+                        },
+                    }}
                 />
             </div>
 
             {/* Status Message */}
             {statusMessage && (
-                <p style={{ color: isError ? "red" : "green" }}>
+                <p
+                    className={styles.statusMessage}
+                    style={{ color: isError ? "red" : "green" }}
+                >
                     {statusMessage}
                 </p>
             )}
 
             {/* Selected Dates */}
-            <div style={{ marginBottom: "1rem" }}>
-                <h3>Selected Dates:</h3>
+            <div className={styles.selectedDates}>
+                <h3 className={styles.subheader}>Selected Dates:</h3>
                 {selectedDates.length === 0 ? (
                     <p>No dates selected.</p>
                 ) : (
@@ -265,33 +277,26 @@ const ApprovedArrangements = () => {
             <button
                 onClick={handleSubmit}
                 disabled={selectedDates.length === 0}
-                style={{
-                    padding: "10px 20px",
-                    backgroundColor:
-                        selectedDates.length === 0 ? "#ccc" : "#0070f3",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "5px",
-                    cursor:
-                        selectedDates.length === 0 ? "not-allowed" : "pointer",
-                }}
+                className={styles.submitButton}
                 aria-label="Submit selected dates"
             >
                 Submit Selected Dates
             </button>
 
             {/* Arrangements List */}
-            <h3>Arrangements List:</h3>
-            <ul>
-                {arrangements.map((arrangement) => (
-                    <li key={arrangement.arrangement_id}>
-                        {arrangement.employee?.staff_fname || "Unknown"}{" "}
-                        {arrangement.employee?.staff_lname || "Employee"} -{" "}
-                        {new Date(arrangement.date).toLocaleDateString()} -{" "}
-                        {arrangement.type} - {arrangement.location}
-                    </li>
-                ))}
-            </ul>
+            <div className={styles.arrangementsList}>
+                <h3 className={styles.subheader}>Arrangements List:</h3>
+                <ul>
+                    {arrangements.map((arrangement) => (
+                        <li key={arrangement.arrangement_id}>
+                            {arrangement.employee?.staff_fname || "Unknown"}{" "}
+                            {arrangement.employee?.staff_lname || "Employee"} -{" "}
+                            {new Date(arrangement.date).toLocaleDateString()} -{" "}
+                            {arrangement.type} - {arrangement.location}
+                        </li>
+                    ))}
+                </ul>
+            </div>
         </div>
     );
 };
