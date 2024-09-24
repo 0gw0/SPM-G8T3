@@ -6,7 +6,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list"; // Import listPlugin for list views
-import styles from "../styles/applications.module.css"; // Import the CSS module
+import styles from "../styles/apply.module.css"; // Import the CSS module
 import { createClient } from "@supabase/supabase-js";
 
 // Initialize Supabase client
