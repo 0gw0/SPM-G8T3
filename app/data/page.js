@@ -1,5 +1,10 @@
 "use client";
 import { useState, useEffect } from 'react';
+// import {supabase} from 
+import {
+  fetchApprovedArrangements,
+  formatDate,
+} from "../api/applications/route.js"; // Import service functions
 
 export default function DataPage() {
   const [data, setData] = useState([]);
