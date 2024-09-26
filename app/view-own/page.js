@@ -18,7 +18,7 @@ const ViewOwnPage = () => {
                 return response.json(); // Parse response as JSON
             })
             .then(data => {
-                console.log("API Response:", data); // Check what the data looks like
+                console.log(data)// Check what the data looks like
                 setArrangements(data); // Set state only if data is an array
             })
             .catch(error => {
