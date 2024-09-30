@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
+import Calendar from '@/components/calendar';
 
 const ViewOwnPage = () => {
     const [arrangements, setArrangements] = useState([]);
@@ -18,7 +19,7 @@ const ViewOwnPage = () => {
                 return response.json(); // Parse response as JSON
             })
             .then(data => {
-                console.log(data)// Check what the data looks like
+                console.log(data); // Check what the data looks like
                 setArrangements(data); // Set state only if data is an array
             })
             .catch(error => {
@@ -37,6 +38,7 @@ const ViewOwnPage = () => {
             {Array.isArray(arrangements) && arrangements.length === 0 ? (
                 <p>No arrangements found.</p>
             ) : Array.isArray(arrangements) ? (
+                <div>
                 <ul>
                     {arrangements.map(arrangement => (
                         <li key={arrangement.arrangement_id}>
@@ -44,6 +46,9 @@ const ViewOwnPage = () => {
                         </li>
                     ))}
                 </ul>
+                {/* Pass the arrangements to the Calendar component */}
+                <Calendar arrangements={arrangements}></Calendar>
+                </div>
             ) : (
                 <p>Data format is incorrect or no data returned.</p>
             )}
