@@ -1,13 +1,13 @@
-import { checkViewOrgPermission } from '@/utils/rolePermissions';
-import { createClient } from '@/utils/supabase/server';
-import { NextResponse } from 'next/server';
+import { checkViewOrgPermission } from "@/utils/rolePermissions";
+import { createClient } from "@/utils/supabase/server";
+import { NextResponse } from "next/server";
 
 const handler = async (req) => {
     const supabase = createClient();
 
     // Fetch all arrangements
     const { data: arrangements, error } = await supabase
-        .from('arrangement')
+        .from("arrangement")
         .select(
             `
             arrangement_id,
@@ -17,14 +17,14 @@ const handler = async (req) => {
             status,
             location,
             employee:staff_id (staff_fname, staff_lname, dept)
-            `   
+            `
         )
-        .order('date', { ascending: true });
+        .order("date", { ascending: true });
 
     if (error) {
-        console.error('Error fetching arrangements:', error);
+        console.error("Error fetching arrangements:", error);
         return NextResponse.json(
-            { error: 'Failed to fetch arrangements' },
+            { error: "Failed to fetch arrangements" },
             { status: 500 }
         );
     }
@@ -37,7 +37,7 @@ const handler = async (req) => {
     }));
 
     return NextResponse.json({
-        message: 'Organization arrangements retrieved successfully',
+        message: "Organization arrangements retrieved successfully",
         data: processedArrangements,
     });
 };
