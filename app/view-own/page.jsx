@@ -17,13 +17,13 @@ const ViewOwnPage = () => {
             const { data, error } = await supabase.auth.getSession();
 
             if (error) {
-                setError('Failed to get session');
+                setError("Failed to get session");
                 setLoading(false);
                 return;
             }
 
             if (!data.session) {
-                setError('No active session');
+                setError("No active session");
                 setLoading(false);
                 return;
             }
@@ -42,7 +42,7 @@ const ViewOwnPage = () => {
             );
 
             if (!response.ok) {
-                setError('Failed to fetch arrangements');
+                setError("Failed to fetch arrangements");
                 setLoading(false);
                 return;
             }
@@ -66,21 +66,22 @@ const ViewOwnPage = () => {
                 <p>No arrangements found.</p>
             ) : Array.isArray(arrangements) ? (
                 <div>
-                <ul>
-                    {arrangements.map(arrangement => (
-                        <li key={arrangement.arrangement_id}>
-                            {arrangement.date}: {arrangement.type} - {arrangement.status}
-                        </li>
-                    ))}
-                </ul>
-                {/* Pass the arrangements to the Calendar component */}
-                <Calendar arrangements={arrangements}></Calendar>
+                    <ul>
+                        {arrangements.map((arrangement) => (
+                            <li key={arrangement.arrangement_id}>
+                                {arrangement.date}: {arrangement.type} -{" "}
+                                {arrangement.status}
+                            </li>
+                        ))}
+                    </ul>
+                    {/* Pass the arrangements to the Calendar component */}
+                    <Calendar arrangements={arrangements}></Calendar>
                 </div>
             ) : (
                 <p>Data format is incorrect or no data returned.</p>
             )}
         </div>
     );
-}
+};
 
 export default ViewOwnPage;
