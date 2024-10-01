@@ -1,5 +1,5 @@
-import { createClient } from '@/utils/supabase/server';
-import { NextResponse } from 'next/server';
+import { createClient } from "@/utils/supabase/server";
+import { NextResponse } from "next/server";
 
 export const checkRolePermission = (handler) => async (req) => {
     const supabase = createClient();
@@ -9,19 +9,19 @@ export const checkRolePermission = (handler) => async (req) => {
     } = await supabase.auth.getUser();
 
     if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Fetch employee data using the staff_id from user metadata
     const { data: employee, error } = await supabase
-        .from('employee')
-        .select('*')
-        .eq('staff_id', user.user_metadata.staff_id)
+        .from("employee")
+        .select("*")
+        .eq("staff_id", user.user_metadata.staff_id)
         .single();
 
     if (error || !employee) {
         return NextResponse.json(
-            { error: 'Employee not found' },
+            { error: "Employee not found" },
             { status: 404 }
         );
     }
@@ -35,7 +35,7 @@ export const checkRolePermission = (handler) => async (req) => {
 export const checkViewOrgPermission = (handler) => async (req) => {
     return checkRolePermission(async (req, user, employee) => {
         if (employee.role !== 1) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
         return handler(req, user, employee);
     })(req);
@@ -48,20 +48,20 @@ export const checkViewTeamPermission = (handler) => async (req) => {
         }
 
         const { searchParams } = new URL(req.url);
-        const dept = searchParams.get('dept');
+        const dept = searchParams.get("dept");
 
         if (employee.role === 2 && employee.dept === dept) {
             return handler(req, user, employee);
         }
 
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     })(req);
 };
 
 export const checkViewOwnPermission = (handler) => async (req) => {
     return checkRolePermission(async (req, user, employee) => {
         const { searchParams } = new URL(req.url);
-        const employee_id = searchParams.get('employee_id');
+        const employee_id = searchParams.get("employee_id");
 
         if (
             employee.role === 1 ||
@@ -71,6 +71,6 @@ export const checkViewOwnPermission = (handler) => async (req) => {
         ) {
             return handler(req, user, employee);
         }
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     })(req);
 };

@@ -4,7 +4,10 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list";
 
-const Calendar = ({ arrangements }) => {
+const ApplyCalendar = ({ arrangements }) => {
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0]; // 'YYYY-MM-DD'
+
     // Convert arrangements into FullCalendar events
     const events = arrangements.map((arrangement) => {
         let backgroundColor = "";
@@ -29,31 +32,15 @@ const Calendar = ({ arrangements }) => {
         };
     });
 
-    // Add default "Work in Office" events from today to one month in advance
-    const defaultWorkInOfficeEvents = [];
-    const today = new Date();
-    const oneMonthLater = new Date(today);
-    oneMonthLater.setMonth(today.getMonth() + 1); // Set one month in advance
+    // Function to add a class to past dates to grey them out
+    const dayCellClassNames = (arg) => {
+        const cellDateStr = arg.date.toISOString().split("T")[0]; // 'YYYY-MM-DD'
 
-    for (
-        let d = new Date(today);
-        d <= oneMonthLater;
-        d.setDate(d.getDate() + 1)
-    ) {
-        // Check if the current date already has an arrangement
-        const eventExists = events.some(
-            (event) => new Date(event.start).toDateString() === d.toDateString()
-        );
-
-        if (!eventExists) {
-            defaultWorkInOfficeEvents.push({
-                title: "Work in Office",
-                start: new Date(d),
-                allDay: true,
-                backgroundColor: "", // Use default color
-            });
+        if (cellDateStr < todayStr) {
+            return ["disabled-date"]; // Add a custom class for disabled days
         }
-    }
+        return [];
+    };
 
     // Optional: Customize the event content to show status in List View
     const renderEventContent = (eventInfo) => {
@@ -84,10 +71,19 @@ const Calendar = ({ arrangements }) => {
             }}
             height="auto"
             aspectRatio={1.35} // Adjust the aspect ratio to prevent extended cells
-            events={[...events, ...defaultWorkInOfficeEvents]} // Merge events with default ones
+            events={[...events]} // Merge events with default ones
             eventContent={renderEventContent} // Optional: Customize event content in list view
+            selectable={true} // Enable date selection
+            selectMirror={true} // Show a temporary event while selecting
+            dayCellClassNames={dayCellClassNames} // Add class names to day cells
+            selectAllow={(selectInfo) => {
+                const selectedDateStr = selectInfo.start
+                    .toISOString()
+                    .split("T")[0];
+                return selectedDateStr >= todayStr;
+            }}
         />
     );
 };
 
-export default Calendar;
+export default ApplyCalendar;
