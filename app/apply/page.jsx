@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client.js";
+import ApplyCalendar from "@/components/applycalendar";
 
-export default function OrganizationArrangements() {
+export default function OwnArrangements() {
     const [arrangements, setArrangements] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -26,14 +27,22 @@ export default function OrganizationArrangements() {
                 return;
             }
 
-            const response = await fetch("/api/schedule/view-org", {
-                headers: {
-                    Authorization: `Bearer ${data.session.access_token}`,
-                },
-            });
+            const token = data.session.access_token;
+            const user = data.session.user;
+            const employee_id = user.user_metadata.staff_id;
+
+            const response = await fetch(
+                `/api/schedule/apply?employee_id=${employee_id}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
 
             if (!response.ok) {
-                setError("Failed to fetch arrangements");
+                const errorResult = await response.json();
+                setError(errorResult.error || "Failed to fetch arrangements");
                 setLoading(false);
                 return;
             }
@@ -52,9 +61,7 @@ export default function OrganizationArrangements() {
 
     return (
         <div className="container mx-auto mt-8 p-4">
-            <h1 className="text-2xl font-bold mb-4">
-                Organization Arrangements
-            </h1>
+            <h1 className="text-2xl font-bold mb-4">Own Arrangements</h1>
             <div className="overflow-x-auto">
                 <table className="min-w-full bg-white border border-gray-300">
                     <thead className="bg-gray-100">
@@ -95,6 +102,9 @@ export default function OrganizationArrangements() {
                         ))}
                     </tbody>
                 </table>
+                <div>
+                    <ApplyCalendar arrangements={arrangements}></ApplyCalendar>
+                </div>
             </div>
         </div>
     );
