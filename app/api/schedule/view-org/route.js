@@ -5,7 +5,7 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_KEY
 );
 
-export async function GET(request) {
+export async function GET() {
     try {
         const { data, error } = await supabase
             .from('arrangement')
@@ -22,7 +22,8 @@ export async function GET(request) {
                 reason,
                 manager_id,
                 created_at,
-                comments
+                comments, 
+                employee: staff_id(staff_fname, staff_lname, dept, position)
             `)
             .eq('status', 'approved')
             .order('date', { ascending: true });
