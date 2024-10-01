@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client.js";
+import GanttChart from "../../components/ganttChart";
 
 export default function OrganizationArrangements() {
     const [arrangements, setArrangements] = useState([]);
@@ -39,10 +40,10 @@ export default function OrganizationArrangements() {
             }
 
             const result = await response.json();
-            setArrangements(result.data);
+            console.log("Fetched arrangements:", result); // Check the structure of result
+            setArrangements(result); // Set the fetched arrangements to state
             setLoading(false);
         }
-
         fetchArrangements();
     }, []);
 
@@ -50,11 +51,18 @@ export default function OrganizationArrangements() {
     if (error)
         return <div className="text-center mt-8 text-red-500">{error}</div>;
 
+    // Check if arrangements is an array and has data
+    if (!Array.isArray(arrangements) || arrangements.length === 0) {
+        return <div className="text-center mt-8">No arrangements found.</div>;
+    }
+
     return (
         <div className="container mx-auto mt-8 p-4">
             <h1 className="text-2xl font-bold mb-4">
                 Organization Arrangements
             </h1>
+            {/* Include the Gantt Chart component here */}
+            <GanttChart arrangements={arrangements} />
             <div className="overflow-x-auto">
                 <table className="min-w-full bg-white border border-gray-300">
                     <thead className="bg-gray-100">
@@ -74,10 +82,10 @@ export default function OrganizationArrangements() {
                                 className="hover:bg-gray-50"
                             >
                                 <td className="py-2 px-4 border-b">
-                                    {arr.employeeName}
+                                    {arr.employee.staff_fname}
                                 </td>
                                 <td className="py-2 px-4 border-b">
-                                    {arr.department}
+                                    {arr.employee.dept}
                                 </td>
                                 <td className="py-2 px-4 border-b">
                                     {new Date(arr.date).toLocaleDateString()}

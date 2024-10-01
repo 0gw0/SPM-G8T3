@@ -1,73 +1,45 @@
-import { createClient } from '@supabase/supabase-js';
+import { checkViewOrgPermission } from "@/utils/rolePermissions";
+import { createClient } from "@/utils/supabase/server";
+import { NextResponse } from "next/server";
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_KEY
-);
+const handler = async (req) => {
+    const supabase = createClient();
 
-export async function GET() {
-    try {
-        const { data, error } = await supabase
-            .from('arrangement')
-            .select(`
-                arrangement_id,
-                staff_id,
-                date,
-                start_date,
-                end_date,
-                recurrence_pattern,
-                type,
-                status,
-                location,
-                reason,
-                manager_id,
-                created_at,
-                comments, 
-                employee: staff_id(staff_fname, staff_lname, dept, position)
-            `)
-            .eq('status', 'approved')
-            .order('date', { ascending: true });
+    // Fetch all arrangements
+    const { data: arrangements, error } = await supabase
+        .from("arrangement")
+        .select(
+            `
+            arrangement_id,
+            staff_id,
+            date,
+            type,
+            status,
+            location,
+            employee:staff_id (staff_fname, staff_lname, dept)
+            `
+        )
+        .order("date", { ascending: true });
 
-        if (error) {
-            throw error;
-        }
-
-        // Map to desired output structure
-        const formattedData = data.map(arrangement => ({
-            arrangement_id: arrangement.arrangement_id,
-            staff_id: arrangement.staff_id,
-            date: arrangement.date,
-            start_date: arrangement.start_date,
-            end_date: arrangement.end_date || null,
-            recurrence_pattern: arrangement.recurrence_pattern,
-            type: arrangement.type,
-            status: arrangement.status,
-            location: arrangement.location,
-            reason: arrangement.reason,
-            manager_id: arrangement.manager_id,
-            created_at: arrangement.created_at,
-            comments: arrangement.comments || null,
-            employee: {
-                staff_fname: arrangement.employee?.staff_fname || 'Unknown',
-                staff_lname: arrangement.employee?.staff_lname || 'Employee',
-                dept: arrangement.employee?.dept || 'N/A',
-                position: arrangement.employee?.position || 'N/A',
-            }
-        }));
-
-        return new Response(JSON.stringify(formattedData), {
-            status: 200,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-    } catch (error) {
-        console.error('Error fetching approved arrangements:', error);
-        return new Response(JSON.stringify({ error: 'Failed to fetch approved arrangements' }), {
-            status: 500,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
+    if (error) {
+        console.error("Error fetching arrangements:", error);
+        return NextResponse.json(
+            { error: "Failed to fetch arrangements" },
+            { status: 500 }
+        );
     }
-}
+
+    // Process the arrangements data
+    const processedArrangements = arrangements.map((arr) => ({
+        ...arr,
+        employeeName: `${arr.employee.staff_fname} ${arr.employee.staff_lname}`,
+        department: arr.employee.dept,
+    }));
+
+    return NextResponse.json({
+        message: "Organization arrangements retrieved successfully",
+        data: processedArrangements,
+    });
+};
+
+export const GET = checkViewOrgPermission(handler);
