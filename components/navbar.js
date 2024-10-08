@@ -9,10 +9,9 @@ const Navbar = () => {
 
     // Add your routes here
     const routes = [
-        { path: '/', name: 'Home' },
-        { path: '/view-own', name: 'My Arrangements' },
+        { path: '/', name: 'My Arrangements' },
         { path: '/view-team', name: 'My Team' },
-        { path: '/view-org', name: 'View Org' },
+        { path: '/view-org', name: 'Organisation' },
     ];
 
     return (
