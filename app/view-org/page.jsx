@@ -57,11 +57,9 @@ export default function OrganizationArrangements() {
     }
 
     return (
-        <div className="container mx-auto mt-8 p-4">
-            <h1 className="text-2xl font-bold mb-4">
-                Organization Arrangements
-            </h1>
-            <GanttChart arrangements={arrangements} />
+        <div className="p-4">
+            <h1 className="text-2xl font-bold mb-4">Organisation Arrangements</h1>
+                <GanttChart arrangements={arrangements} />
         </div>
     );
 }
