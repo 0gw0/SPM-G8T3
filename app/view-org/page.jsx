@@ -41,7 +41,7 @@ export default function OrganizationArrangements() {
 
             const result = await response.json();
             console.log("Fetched arrangements:", result); // Check the structure of result
-            setArrangements(result); // Set the fetched arrangements to state
+            setArrangements(result.data); // Set the fetched arrangements to state
             setLoading(false);
         }
         fetchArrangements();
@@ -61,49 +61,7 @@ export default function OrganizationArrangements() {
             <h1 className="text-2xl font-bold mb-4">
                 Organization Arrangements
             </h1>
-            {/* Include the Gantt Chart component here */}
             <GanttChart arrangements={arrangements} />
-            <div className="overflow-x-auto">
-                <table className="min-w-full bg-white border border-gray-300">
-                    <thead className="bg-gray-100">
-                        <tr>
-                            <th className="py-2 px-4 border-b">Employee</th>
-                            <th className="py-2 px-4 border-b">Department</th>
-                            <th className="py-2 px-4 border-b">Date</th>
-                            <th className="py-2 px-4 border-b">Type</th>
-                            <th className="py-2 px-4 border-b">Location</th>
-                            <th className="py-2 px-4 border-b">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {arrangements.map((arr) => (
-                            <tr
-                                key={arr.arrangement_id}
-                                className="hover:bg-gray-50"
-                            >
-                                <td className="py-2 px-4 border-b">
-                                    {arr.employee.staff_fname}
-                                </td>
-                                <td className="py-2 px-4 border-b">
-                                    {arr.employee.dept}
-                                </td>
-                                <td className="py-2 px-4 border-b">
-                                    {new Date(arr.date).toLocaleDateString()}
-                                </td>
-                                <td className="py-2 px-4 border-b">
-                                    {arr.type}
-                                </td>
-                                <td className="py-2 px-4 border-b">
-                                    {arr.location}
-                                </td>
-                                <td className="py-2 px-4 border-b">
-                                    {arr.status}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
         </div>
     );
 }
