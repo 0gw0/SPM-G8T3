@@ -115,12 +115,12 @@ function transformEmployeeData(employees) {
 const GanttChart = ({ arrangements, isLoading }) => {
     // Transform the employee data into the required format
     const transformedData = transformEmployeeData(arrangements);
-     
+
     // Log the transformed data to the console
     console.log("Transformed Employee Data:", transformedData);
 
     return (
-        <section>
+        <div style={{ position: 'relative', width: 'auto', height: '600px' }}>
             <Scheduler
             isLoading={isLoading}
             data={transformedData}
@@ -132,10 +132,11 @@ const GanttChart = ({ arrangements, isLoading }) => {
                 zoom: 1,
                 lang: "en",
                 maxRecordsPerPage: 20,
-                showTooltip: false
+                showTooltip: false,
+                showThemeToggle: true
             }}
         />
-        </section>
+        </div>
         
     );
 };
