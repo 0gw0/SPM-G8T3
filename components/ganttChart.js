@@ -6,16 +6,16 @@ function transformEmployeeData(employees) {
     function capitalizeFirstLetter(string) {
         return string.charAt(0).toUpperCase() + string.slice(1);
     }
-    return employees.map((employee) => {
+
+    return employees.map(employee => {
         const staffId = employee.staff_id;
 
         // Prepare the label for the staff member
         const label = {
             icon: null, // Default icon
-            title: `${capitalizeFirstLetter(
-                employee.staff_fname
-            )} ${capitalizeFirstLetter(employee.staff_lname)}`, // Full name with capitalized first letters
-            subtitle: capitalizeFirstLetter(employee.position || "no position"), // Capitalize position or fallback
+            title: `${capitalizeFirstLetter(employee.staff_fname)} ${capitalizeFirstLetter(employee.staff_lname)}`, // Full name with capitalized first letters
+            subtitle: capitalizeFirstLetter(employee.position || 'no position'), // Capitalize position or fallback
+            department: employee.dept
         };
 
         // Initialize data for employee arrangements
@@ -73,11 +73,10 @@ function transformEmployeeData(employees) {
                         startDate: startDate,
                         endDate: endDate,
                         occupancy: null, // Set occupancy or default to 3600
-                        title:
-                            arrangement.location === "home" ? "WFH" : "Office",
+                        title: arrangement.location === 'home' ? 'WFH' : 'Office',
                         subtitle: capitalizeFirstLetter(arrangement.type),
-                        description: arrangement.reason || "No reason provided", // Fallback to 'No reason provided'
-                        bgColor: bgColor,
+                        description: arrangement.reason || 'No reason provided', // Fallback to 'No reason provided'
+                        bgColor: bgColor
                     });
 
                     // Handle recurrence pattern
@@ -103,6 +102,7 @@ function transformEmployeeData(employees) {
                         }
 
                         // Repeat arrangement for the duration based on the recurrence pattern
+                        let recurrenceCount = 0; // To ensure unique IDs
                         while (recurrenceStartDate < threeMonthsLater) {
                             if (arrangement.recurrence_pattern === "monthly") {
                                 recurrenceStartDate.setMonth(
@@ -121,23 +121,18 @@ function transformEmployeeData(employees) {
                             }
 
                             if (recurrenceStartDate < threeMonthsLater) {
+                                // Generate a unique ID for each recurring arrangement
                                 employeeData.data.push({
-                                    id: arrangement.arrangement_id.toString(), // Same arrangement id or new logic for unique ids
+                                    id: `${arrangement.arrangement_id}-${recurrenceCount}`, // Unique ID for each recurring arrangement
                                     startDate: new Date(recurrenceStartDate),
                                     endDate: new Date(recurrenceEndDate),
                                     occupancy: null, // Set occupancy or default
-                                    title:
-                                        arrangement.location === "home"
-                                            ? "WFH"
-                                            : "Office",
-                                    subtitle: capitalizeFirstLetter(
-                                        arrangement.type
-                                    ),
-                                    description:
-                                        arrangement.reason ||
-                                        "No reason provided",
-                                    bgColor: bgColor,
+                                    title: arrangement.location === 'home' ? 'WFH' : 'Office',
+                                    subtitle: capitalizeFirstLetter(arrangement.type),
+                                    description: arrangement.reason || 'No reason provided',
+                                    bgColor: bgColor
                                 });
+                                recurrenceCount++; // Increment count for unique ID
                             }
                         }
                     }
@@ -150,6 +145,8 @@ function transformEmployeeData(employees) {
     });
 }
 
+
+
 const GanttChart = ({ arrangements, isLoading }) => {
     // Transform the employee data into the required format
     const transformedData = transformEmployeeData(arrangements);
@@ -160,20 +157,17 @@ const GanttChart = ({ arrangements, isLoading }) => {
     return (
         <div style={{ position: "relative", width: "auto", height: "600px" }}>
             <Scheduler
-                isLoading={isLoading}
-                data={transformedData}
-                onItemClick={(clickedItem) => console.log(clickedItem)}
-                onFilterData={() => {}}
-                onClearFilterData={() => {}}
-                config={{
-                    filterButtonState: 0,
-                    zoom: 1,
-                    lang: "en",
-                    maxRecordsPerPage: 20,
-                    showTooltip: false,
-                    showThemeToggle: true,
-                }}
-            />
+            isLoading={isLoading}
+            data={transformedData}
+            config={{
+                filterButtonState: -1,
+                zoom: 1,
+                lang: "en",
+                maxRecordsPerPage: 20,
+                showTooltip: false,
+                showThemeToggle: true
+            }}
+        />
         </div>
     );
 };
