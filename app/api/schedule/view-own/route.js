@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
 const handler = async (req) => {
+    console.log('view-own handler executed')
     const supabase = createClient();
 
     // Get the token from the Authorization header
@@ -81,3 +82,6 @@ const handler = async (req) => {
 };
 
 export const GET = checkViewOwnPermission(handler);
+module.exports = {
+    GET: checkViewOwnPermission(handler)
+  };
