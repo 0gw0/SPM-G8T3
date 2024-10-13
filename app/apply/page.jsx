@@ -6,6 +6,7 @@ import ApplyCalendar from "@/components/applycalendar";
 
 export default function OwnArrangements() {
     const [arrangements, setArrangements] = useState([]);
+    const [datesDict, setDatesDict] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const supabase = createClient();
@@ -55,6 +56,61 @@ export default function OwnArrangements() {
         fetchArrangements();
     }, []);
 
+    // Function to handle the POST request
+    const handleApply = async () => {
+        const { data, error } = await supabase.auth.getSession();
+
+        if (error) {
+            setError("Failed to get session");
+            return;
+        }
+
+        if (!data.session) {
+            setError("No active session");
+            return;
+        }
+
+        const token = data.session.access_token;
+        const user = data.session.user;
+        const employee_id = user.user_metadata.staff_id;
+
+        // Prepare the request body
+        const requestBody = {
+            dates: datesDict, // The dates dictionary collected from ApplyCalendar
+        };
+
+        const response = await fetch(
+            `/api/schedule/apply?employee_id=${employee_id}`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(requestBody),
+            }
+        );
+
+        if (!response.ok) {
+            const errorResult = await response.json();
+            setError(errorResult.error || "Failed to apply arrangements");
+            return;
+        }
+
+        const result = await response.json();
+        // Optionally, update the arrangements state to reflect the new data
+        setArrangements((prevArrangements) => [
+            ...prevArrangements,
+            ...result.data,
+        ]);
+        alert(result.message || "Arrangements applied successfully");
+    };
+
+    // Callback function to receive datesDict from ApplyCalendar
+    const handleDatesChange = (newDatesDict) => {
+        setDatesDict(newDatesDict);
+    };
+
     if (loading) return <div className="text-center mt-8">Loading...</div>;
     if (error)
         return <div className="text-center mt-8 text-red-500">{error}</div>;
@@ -102,8 +158,17 @@ export default function OwnArrangements() {
                         ))}
                     </tbody>
                 </table>
-                <div>
-                    <ApplyCalendar arrangements={arrangements}></ApplyCalendar>
+                <div className="mt-4">
+                    <ApplyCalendar
+                        arrangements={arrangements}
+                        onDatesChange={handleDatesChange}
+                    />
+                    <button
+                        onClick={handleApply}
+                        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    >
+                        Apply for WFH
+                    </button>
                 </div>
             </div>
         </div>
