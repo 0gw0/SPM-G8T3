@@ -6,8 +6,7 @@ const handler = async (req) => {
     const supabase = createClient();
 
     // Fetch all employees
-    const { data: employees, error: empError } = await supabase
-        .from("employee")
+    const { data: employees, error: empError } = await supabase.from("employee")
         .select(`
             staff_id,
             staff_fname,
@@ -27,7 +26,8 @@ const handler = async (req) => {
     // Fetch all arrangements with employee details
     const { data: arrangements, error: arrError } = await supabase
         .from("arrangement")
-        .select(`
+        .select(
+            `
             arrangement_id,
             staff_id,
             date,
@@ -44,7 +44,8 @@ const handler = async (req) => {
             employee:staff_id (
                 staff_id
             )
-        `)
+        `
+        )
         .order("date", { ascending: true });
 
     if (arrError) {
