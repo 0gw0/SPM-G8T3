@@ -1,6 +1,9 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client.js";
+import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+import "react-tabs/style/react-tabs.css";
+import GanttChart from "../../components/ganttChart";
 
 const ViewTeamPage = () => {
     const [managedTeamArrangements, setManagedTeamArrangements] = useState([]);
@@ -8,6 +11,7 @@ const ViewTeamPage = () => {
         reportingManagerTeamArrangements,
         setReportingManagerTeamArrangements,
     ] = useState([]);
+    const [role, setRole] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const supabase = createClient();
@@ -15,163 +19,93 @@ const ViewTeamPage = () => {
     useEffect(() => {
         async function fetchArrangements() {
             setLoading(true);
+            try {
+                const { data, error } = await supabase.auth.getSession();
+                if (error) {
+                    console.error("Failed to get session:", error);
+                    setError("Failed to get session");
+                    return;
+                }
 
-            const { data, error } = await supabase.auth.getSession();
-            if (error) {
-                setError("Failed to get session");
+                console.log("Session data:", data);
+                const token = data.session.access_token;
+
+                const response = await fetch(`/api/schedule/view-team`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+
+                if (!response.ok) {
+                    console.error("Failed to fetch data:", response.statusText);
+                    setError("Failed to fetch data");
+                    return;
+                }
+
+                const result = await response.json();
+                console.log("API Response:", result);
+
+                setRole(result.role);
+
+                if (result.role === 1 || result.role === 3) {
+                    setManagedTeamArrangements(result.managedTeam || []);
+                    setReportingManagerTeamArrangements(
+                        result.reportingManagerTeam || []
+                    );
+                } else if (result.role === 2) {
+                    setReportingManagerTeamArrangements(
+                        result.teamMemberArrangements || []
+                    );
+                }
+            } catch (err) {
+                console.error("Unexpected error:", err);
+                setError("Unexpected error occurred");
+            } finally {
                 setLoading(false);
-                return;
             }
-
-            const token = data.session.access_token;
-
-            const response = await fetch(`/api/schedule/view-team`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
-
-            if (!response.ok) {
-                setError("Failed to fetch arrangements");
-                setLoading(false);
-                return;
-            }
-
-            const result = await response.json();
-
-            if (result.managedTeam) {
-                setManagedTeamArrangements(result.managedTeam);
-                setReportingManagerTeamArrangements(
-                    result.reportingManagerTeam
-                );
-            } else {
-                setReportingManagerTeamArrangements(
-                    result.teamMemberArrangements
-                );
-            }
-
-            setLoading(false);
         }
 
         fetchArrangements();
     }, []);
 
-    if (loading) {
-        return <div>Loading...</div>;
-    }
-
-    if (error) {
-        return <div>Error: {error}</div>;
-    }
+    if (loading) return <div>Loading...</div>;
+    if (error) return <div>Error: {error}</div>;
 
     return (
         <div className="p-4">
-            <h1 className="text-2xl font-bold mb-6">Employee Arrangements</h1>
+            <h1 className="text-2xl font-bold mb-6">Team Schedules</h1>
 
-            {/* For Role 1/3, show two views as tables */}
-            {managedTeamArrangements?.length > 0 && (
-                <>
-                    <h2 className="text-xl font-semibold mb-4">My Team</h2>
-                    <table className="min-w-full bg-white border border-gray-200">
-                        <thead className="bg-gray-200">
-                            <tr>
-                                <th className="py-2 px-4 border">Staff ID</th>
-                                <th className="py-2 px-4 border">Full Name</th>
-                                <th className="py-2 px-4 border">Position</th>
-                                <th className="py-2 px-4 border">Date</th>
-                                <th className="py-2 px-4 border">Start Date</th>
-                                <th className="py-2 px-4 border">End Date</th>
-                                <th className="py-2 px-4 border">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {managedTeamArrangements.map((arrangement) => (
-                                <tr
-                                    key={arrangement.arrangement_id}
-                                    className="hover:bg-gray-100"
-                                >
-                                    <td className="py-2 px-4 border">
-                                        {arrangement.staff_id}
-                                    </td>
-                                    <td className="py-2 px-4 border">
-                                        {arrangement.employee?.staff_fname}{" "}
-                                        {arrangement.employee?.staff_lname}
-                                    </td>
-                                    <td className="py-2 px-4 border">
-                                        {arrangement.employee?.position}
-                                    </td>
-                                    <td className="py-2 px-4 border">
-                                        {arrangement.date}
-                                    </td>
-                                    <td className="py-2 px-4 border">
-                                        {arrangement.start_date}
-                                    </td>
-                                    <td className="py-2 px-4 border">
-                                        {arrangement.end_date}
-                                    </td>
-                                    <td className="py-2 px-4 border">
-                                        {arrangement.status}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </>
-            )}
+            {role === 1 || role === 3 ? (
+                <Tabs>
+                    <TabList>
+                        <Tab>Manager View</Tab>
+                        <Tab>Team View</Tab>
+                    </TabList>
 
-            {/* For Role 1/3's second view or Role 2's single view */}
-            <h2 className="text-xl font-semibold mt-6">
-                {managedTeamArrangements?.length > 0
-                    ? "Team I'm Reporting To"
-                    : "My Team"}
-            </h2>
-            {reportingManagerTeamArrangements?.length === 0 ? (
-                <p>No arrangements found for this team.</p>
+                    <TabPanel>
+                        <GanttChart
+                            arrangements={managedTeamArrangements}
+                            isLoading={loading}
+                        />
+                    </TabPanel>
+
+                    <TabPanel>
+                        <GanttChart
+                            arrangements={reportingManagerTeamArrangements}
+                            isLoading={loading}
+                        />
+                    </TabPanel>
+                </Tabs>
             ) : (
-                <table className="min-w-full bg-white border border-gray-200">
-                    <thead className="bg-gray-200">
-                        <tr>
-                            <th className="py-2 px-4 border">Staff ID</th>
-                            <th className="py-2 px-4 border">Full Name</th>
-                            <th className="py-2 px-4 border">Position</th>
-                            <th className="py-2 px-4 border">Date</th>
-                            <th className="py-2 px-4 border">Start Date</th>
-                            <th className="py-2 px-4 border">End Date</th>
-                            <th className="py-2 px-4 border">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {reportingManagerTeamArrangements.map((arrangement) => (
-                            <tr
-                                key={arrangement.arrangement_id}
-                                className="hover:bg-gray-100"
-                            >
-                                <td className="py-2 px-4 border">
-                                    {arrangement.staff_id}
-                                </td>
-                                <td className="py-2 px-4 border">
-                                    {arrangement.employee?.staff_fname}{" "}
-                                    {arrangement.employee?.staff_lname}
-                                </td>
-                                <td className="py-2 px-4 border">
-                                    {arrangement.employee?.position}
-                                </td>
-                                <td className="py-2 px-4 border">
-                                    {arrangement.date}
-                                </td>
-                                <td className="py-2 px-4 border">
-                                    {arrangement.start_date}
-                                </td>
-                                <td className="py-2 px-4 border">
-                                    {arrangement.end_date}
-                                </td>
-                                <td className="py-2 px-4 border">
-                                    {arrangement.status}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                <div>
+                    <Tabs>
+                        <TabList>
+                            <Tab>My Team</Tab>
+                        </TabList>
+                        <GanttChart
+                            arrangements={reportingManagerTeamArrangements}
+                            isLoading={loading}
+                        />
+                    </Tabs>
+                </div>
             )}
         </div>
     );

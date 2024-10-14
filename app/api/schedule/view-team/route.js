@@ -3,192 +3,174 @@ import { checkViewTeamPermission } from "@/utils/rolePermissions";
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
-const handler = async (
-    req,
-    user,
-    employee,
-    { managerTeamMemberIDs, reportingManagerTeamMemberIDs, role }
-) => {
+const handler = async (req, user, employee) => {
     const supabase = createClient();
+    const staff_id = employee.staff_id;
+    const role = employee.role;
 
-    const token = req.headers.get("Authorization")?.replace("Bearer ", "");
-    if (!token) {
-        return NextResponse.json(
-            { error: "Missing or invalid token" },
-            { status: 403 }
-        );
-    }
-
-    const {
-        data: { user: tokenUser },
-        error: tokenError,
-    } = await supabase.auth.getUser(token);
-    if (tokenError || !tokenUser) {
-        return NextResponse.json(
-            { error: "Invalid session or token" },
-            { status: 403 }
-        );
-    }
+    console.log("Role received:", role);
+    console.log("Employee ID:", staff_id);
 
     try {
         if (role === 1 || role === 3) {
-            console.log("Fetching arrangements for Role 1 or 3...");
+            console.log("Fetching arrangements for Director or Manager...");
 
-            // Fetch managed team arrangements using the 'staff_id' relation
-            const {
-                data: managerTeamArrangements,
-                error: managerArrangementsError,
-            } = await supabase
-                .from("arrangement")
-                .select(
-                    `
-          arrangement_id,
-          staff_id,
-          date,
-          start_date,
-          end_date,
-          type,
-          status,
-          location,
-          reason,
-          recurrence_pattern,
-          comments,
-          employee!arrangement_staff_id_fkey (
-            staff_id,
-            staff_fname,
-            staff_lname,
-            position
-          )
-        `
-                )
-                .in("staff_id", managerTeamMemberIDs);
-
-            if (managerArrangementsError) {
-                console.error(
-                    "Error fetching manager team arrangements:",
-                    managerArrangementsError
-                );
-                return NextResponse.json(
-                    {
-                        message: "Error fetching manager's team arrangements",
-                        error: managerArrangementsError,
-                    },
-                    { status: 500 }
-                );
-            }
-
-            // Fetch reporting manager team arrangements using the 'staff_id' relation
-            const {
-                data: reportingManagerTeamArrangements,
-                error: reportingManagerArrangementsError,
-            } = await supabase
-                .from("arrangement")
-                .select(
-                    `
-          arrangement_id,
-          staff_id,
-          date,
-          start_date,
-          end_date,
-          type,
-          status,
-          location,
-          reason,
-          recurrence_pattern,
-          comments,
-          employee!arrangement_staff_id_fkey (
-            staff_id,
-            staff_fname,
-            staff_lname,
-            position
-          )
-        `
-                )
-                .in("staff_id", reportingManagerTeamMemberIDs);
-
-            if (reportingManagerArrangementsError) {
-                console.error(
-                    "Error fetching reporting manager's team arrangements:",
-                    reportingManagerArrangementsError
-                );
-                return NextResponse.json(
-                    {
-                        message:
-                            "Error fetching reporting manager's team arrangements",
-                        error: reportingManagerArrangementsError,
-                    },
-                    { status: 500 }
-                );
-            }
-
-            const finalData = {
-                managedTeam: managerTeamArrangements,
-                reportingManagerTeam: reportingManagerTeamArrangements,
-            };
-
-            console.log("Successfully fetched Role 1/3 data");
-            return NextResponse.json(finalData, { status: 200 });
-        }
-
-        if (role === 2) {
-            console.log("Fetching arrangements for Role 2...");
-
-            const { data: teamArrangements, error: teamArrangementsError } =
+            // Fetch managed team employees
+            const { data: managerEmployees, error: managerEmpError } =
                 await supabase
-                    .from("arrangement")
+                    .from("employee")
                     .select(
-                        `
-          arrangement_id,
-          staff_id,
-          date,
-          start_date,
-          end_date,
-          type,
-          status,
-          location,
-          reason,
-          recurrence_pattern,
-          comments,
-          employee!arrangement_staff_id_fkey (
-            staff_id,
-            staff_fname,
-            staff_lname,
-            position
-          )
-        `
+                        "staff_id, staff_fname, staff_lname, dept, position"
                     )
-                    .in("staff_id", reportingManagerTeamMemberIDs);
+                    .eq("reporting_manager", staff_id);
 
-            if (teamArrangementsError) {
+            if (managerEmpError) {
                 console.error(
-                    "Error fetching team arrangements for Role 2:",
-                    teamArrangementsError
+                    "Error fetching managed team employees:",
+                    managerEmpError
                 );
                 return NextResponse.json(
-                    {
-                        message: "Error fetching team arrangements for Role 2",
-                        error: teamArrangementsError,
-                    },
+                    { error: "Failed to fetch managed team employees" },
                     { status: 500 }
                 );
             }
 
-            const finalData = {
-                teamMemberArrangements: teamArrangements,
-            };
+            const managedTeam = await fetchArrangementsByStaff(
+                supabase,
+                managerEmployees
+            );
 
-            console.log("Successfully fetched Role 2 data");
-            return NextResponse.json(finalData, { status: 200 });
+            console.log("Managed Team Data:", managedTeam);
+
+            // Fetch complete details of the reporting manager
+            const { data: reportingManager, error: reportingManagerError } =
+                await supabase
+                    .from("employee")
+                    .select(
+                        "staff_id, staff_fname, staff_lname, dept, position"
+                    )
+                    .eq("staff_id", employee.reporting_manager)
+                    .single();
+
+            if (reportingManagerError || !reportingManager) {
+                console.error(
+                    "Error fetching reporting manager details:",
+                    reportingManagerError
+                );
+                return NextResponse.json(
+                    { error: "Failed to fetch reporting manager details" },
+                    { status: 500 }
+                );
+            }
+
+            const reportingManagerTeam = await fetchArrangementsByStaff(
+                supabase,
+                [reportingManager]
+            );
+
+            console.log("Reporting Manager's Team Data:", reportingManagerTeam);
+
+            return NextResponse.json({
+                managedTeam: managedTeam,
+                reportingManagerTeam: reportingManagerTeam,
+                role: role,
+            });
+        } else if (role === 2) {
+            console.log("Fetching arrangements for Employee...");
+
+            const { data: reportingManager, error: reportingManagerError } =
+                await supabase
+                    .from("employee")
+                    .select(
+                        "staff_id, staff_fname, staff_lname, dept, position"
+                    )
+                    .eq("staff_id", employee.reporting_manager)
+                    .single();
+
+            if (reportingManagerError || !reportingManager) {
+                console.error(
+                    "Error fetching reporting manager details:",
+                    reportingManagerError
+                );
+                return NextResponse.json(
+                    { error: "Failed to fetch reporting manager details" },
+                    { status: 500 }
+                );
+            }
+
+            const teamArrangements = await fetchArrangementsByStaff(supabase, [
+                { ...reportingManager },
+                { ...employee },
+            ]);
+
+            console.log("Team Arrangements for Employee:", teamArrangements);
+
+            return NextResponse.json({
+                teamMemberArrangements: teamArrangements,
+                role: role,
+            });
         }
 
-        return NextResponse.json({ message: "Invalid role", status: 403 });
+        console.error("Invalid role or role not handled.");
+        return NextResponse.json({ error: "Invalid role" }, { status: 403 });
     } catch (error) {
-        console.error("Unexpected error occurred:", error);
+        console.error("Unexpected error:", error);
         return NextResponse.json(
-            { message: "Unexpected error occurred", error },
+            { error: "Unexpected error occurred", details: error },
             { status: 500 }
         );
     }
 };
+
+// Helper function to fetch and group arrangements by staff_id
+async function fetchArrangementsByStaff(supabase, employees) {
+    const staffIds = employees.map((emp) => emp.staff_id);
+
+    const { data: arrangements, error } = await supabase
+        .from("arrangement")
+        .select(
+            `
+            arrangement_id,
+            staff_id,
+            date,
+            start_date,
+            end_date,
+            recurrence_pattern,
+            type,
+            status,
+            location,
+            reason,
+            manager_id,
+            created_at,
+            comments,
+            employee:staff_id (
+                staff_fname,
+                staff_lname,
+                dept,
+                position
+            )
+        `
+        )
+        .in("staff_id", staffIds)
+        .order("date", { ascending: true });
+
+    if (error) {
+        console.error("Error fetching arrangements:", error);
+        return [];
+    }
+
+    const groupedArrangements = employees.map((employee) => ({
+        staff_id: employee.staff_id,
+        staff_fname: employee.staff_fname,
+        staff_lname: employee.staff_lname,
+        dept: employee.dept,
+        position: employee.position,
+        arrangements: arrangements.filter(
+            (arr) => arr.staff_id === employee.staff_id
+        ),
+    }));
+
+    return groupedArrangements;
+}
 
 export const GET = checkViewTeamPermission(handler);
