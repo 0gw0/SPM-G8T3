@@ -58,6 +58,10 @@ export default function OwnArrangements() {
 
     // Function to handle the POST request
     const handleApply = async () => {
+        if (!datesDict || Object.keys(datesDict).length === 0) {
+            alert("Please select at least one date before applying.");
+            return;
+        }
         const { data, error } = await supabase.auth.getSession();
 
         if (error) {
@@ -98,10 +102,11 @@ export default function OwnArrangements() {
         }
 
         const result = await response.json();
+        console.log("Debug Data from server:", result.debugData);
         // Optionally, update the arrangements state to reflect the new data
         setArrangements((prevArrangements) => [
             ...prevArrangements,
-            ...result.data,
+            ...(Array.isArray(result.arrangements) ? result.arrangements : []),
         ]);
         alert(result.message || "Arrangements applied successfully");
     };
@@ -125,8 +130,14 @@ export default function OwnArrangements() {
                             <th className="py-2 px-4 border-b">Employee</th>
                             <th className="py-2 px-4 border-b">Department</th>
                             <th className="py-2 px-4 border-b">Date</th>
+                            <th className="py-2 px-4 border-b">Start Date</th>
+                            <th className="py-2 px-4 border-b">End Date</th>
+                            <th className="py-2 px-4 border-b">
+                                Recurrence Pattern
+                            </th>
                             <th className="py-2 px-4 border-b">Type</th>
                             <th className="py-2 px-4 border-b">Location</th>
+                            <th className="py-2 px-4 border-b">Reason</th>
                             <th className="py-2 px-4 border-b">Status</th>
                         </tr>
                     </thead>
@@ -146,10 +157,26 @@ export default function OwnArrangements() {
                                     {new Date(arr.date).toLocaleDateString()}
                                 </td>
                                 <td className="py-2 px-4 border-b">
+                                    {new Date(
+                                        arr.start_date
+                                    ).toLocaleDateString()}
+                                </td>
+                                <td className="py-2 px-4 border-b">
+                                    {new Date(
+                                        arr.end_date
+                                    ).toLocaleDateString()}
+                                </td>
+                                <td className="py-2 px-4 border-b">
+                                    {arr.recurrence_pattern}
+                                </td>
+                                <td className="py-2 px-4 border-b">
                                     {arr.type}
                                 </td>
                                 <td className="py-2 px-4 border-b">
                                     {arr.location}
+                                </td>
+                                <td className="py-2 px-4 border-b">
+                                    {arr.reason}
                                 </td>
                                 <td className="py-2 px-4 border-b">
                                     {arr.status}

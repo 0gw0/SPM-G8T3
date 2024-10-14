@@ -2,7 +2,7 @@ import { checkViewOwnPermission } from "@/utils/rolePermissions";
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
-const handler = async (req) => {
+export const handler = async (req) => {
     console.log("view-own handler executed");
     const supabase = createClient();
 
@@ -48,9 +48,13 @@ const handler = async (req) => {
             arrangement_id,
             staff_id,
             date,
+            start_date,
+            end_date,
+            recurrence_pattern,
             type,
             status,
             location,
+            reason,
             employee:staff_id (staff_fname, staff_lname, dept)
             `
         )

@@ -1,13 +1,13 @@
+import { NextResponse, NextRequest } from "next/server";
+import { handler as viewOwnHandler } from "../view-own/route.js";
 import { checkViewOwnPermission } from "@/utils/rolePermissions";
 import { createClient } from "@/utils/supabase/server";
-import { NextResponse } from "next/server";
 
-const handler = async (req) => {
+export const POST = checkViewOwnPermission(async (req) => {
     const supabase = createClient();
 
-    // Get the token from the Authorization header
+    // Extract the token from the Authorization header
     const token = req.headers.get("Authorization")?.replace("Bearer ", "");
-
     if (!token) {
         return NextResponse.json(
             { error: "Missing or invalid token" },
@@ -30,7 +30,6 @@ const handler = async (req) => {
     }
 
     const staff_id = user.user_metadata?.staff_id;
-
     if (!staff_id) {
         console.error("Staff ID not found in user metadata");
         return NextResponse.json(
@@ -39,91 +38,8 @@ const handler = async (req) => {
         );
     }
 
-    // Fetch arrangements for this staff_id
-    const { data: arrangements, error } = await supabase
-        .from("arrangement")
-        .select(
-            `
-            arrangement_id,
-            staff_id,
-            date,
-            type,
-            status,
-            location,
-            employee:staff_id (staff_fname, staff_lname, dept)
-            `
-        )
-        .eq("staff_id", staff_id) // Filter by staff_id
-        .order("date", { ascending: true });
-
-    if (error) {
-        console.error("Error fetching arrangements:", error);
-        return NextResponse.json(
-            { error: "Failed to fetch arrangements" },
-            { status: 500 }
-        );
-    }
-
-    // Process the arrangements data
-    const processedArrangements = arrangements.map((arr) => ({
-        ...arr,
-        employeeName: `${arr.employee.staff_fname} ${arr.employee.staff_lname}`,
-        department: arr.employee.dept,
-    }));
-
-    return NextResponse.json({
-        message:
-            processedArrangements.length === 0
-                ? "This user has no existing arrangements"
-                : "Own arrangements retrieved successfully",
-        data: processedArrangements,
-    });
-};
-
-const createArrangement = async (req) => {
-    const supabase = createClient();
-
-    testing_dates = {
-        dates: {
-            "2024-10-08": "AM-WFH",
-            "2024-10-09": "Full-day-WFH",
-        },
-    };
-
-    // Get the token from the Authorization header
-    const token = req.headers.get("Authorization")?.replace("Bearer ", "");
-
-    if (!token) {
-        return NextResponse.json(
-            { error: "Missing or invalid token" },
-            { status: 403 }
-        );
-    }
-
-    // Get the user's session using the token
-    const {
-        data: { user },
-        error: userError,
-    } = await supabase.auth.getUser(token);
-
-    if (userError || !user) {
-        console.error("Error getting user:", userError);
-        return NextResponse.json(
-            { error: "Invalid session or token" },
-            { status: 403 }
-        );
-    }
-
-    const staff_id = user.user_metadata?.staff_id;
-
-    if (!staff_id) {
-        console.error("Staff ID not found in user metadata");
-        return NextResponse.json(
-            { error: "Staff ID not found in user metadata" },
-            { status: 400 }
-        );
-    }
-
+    // Parse the request body to get the dates dictionary
+    let body;
     try {
         body = await req.json();
     } catch (error) {
@@ -134,8 +50,7 @@ const createArrangement = async (req) => {
         );
     }
 
-    const datesDict = testing_dates.dates; // Assuming the dates dictionary is in body.dates
-
+    const datesDict = body.dates; // The dates dictionary from the request body
     if (!datesDict || typeof datesDict !== "object") {
         return NextResponse.json(
             { error: "Invalid dates dictionary" },
@@ -143,26 +58,40 @@ const createArrangement = async (req) => {
         );
     }
 
+    // Step 1: Retrieve user's existing arrangements using viewOwnHandler
+    const getRequest = new NextRequest(req.url, {
+        method: "GET",
+        headers: req.headers,
+    });
+
+    const existingArrangementsResponse = await viewOwnHandler(getRequest);
+    const existingArrangementsResult =
+        await existingArrangementsResponse.json();
+
+    if (!existingArrangementsResponse.ok) {
+        console.error(
+            "Error fetching existing arrangements:",
+            existingArrangementsResult.error
+        );
+        return NextResponse.json(
+            { error: "Failed to fetch existing arrangements" },
+            { status: existingArrangementsResponse.status }
+        );
+    }
+
+    // Create a Set of dates the user already has arrangements for
+    const existingDatesSet = new Set(
+        existingArrangementsResult.data.map((arr) => arr.date)
+    );
+
     const insertArrangements = [];
+    const skippedDates = [];
 
+    // Step 2: Prepare new arrangements, skipping dates with existing arrangements
     for (const [date, status] of Object.entries(datesDict)) {
-        // First, check if an arrangement already exists for this date and staff_id
-        const { data: existingArrangements, error: fetchError } = await supabase
-            .from("arrangement")
-            .select("arrangement_id")
-            .eq("staff_id", staff_id)
-            .eq("date", date);
-
-        if (fetchError) {
-            console.error("Error checking existing arrangement:", fetchError);
-            return NextResponse.json(
-                { error: "Failed to check existing arrangements" },
-                { status: 500 }
-            );
-        }
-
-        if (existingArrangements && existingArrangements.length > 0) {
-            // Arrangement already exists, skip insertion
+        if (existingDatesSet.has(date)) {
+            // Arrangement already exists for this date, skip insertion
+            skippedDates.push(date);
             continue;
         }
 
@@ -175,31 +104,74 @@ const createArrangement = async (req) => {
         });
     }
 
-    if (insertArrangements.length === 0) {
-        return NextResponse.json({
-            message: "No new arrangements to insert",
-        });
+    // Step 3: Insert the new arrangements if any
+    if (insertArrangements.length > 0) {
+        const { data: insertedData, error: insertError } = await supabase
+            .from("arrangement")
+            .insert(insertArrangements)
+            .select(); // Include select() to get the inserted data
+
+        if (insertError) {
+            console.error("Error inserting new arrangements:", insertError);
+            return NextResponse.json(
+                { error: "Failed to insert new arrangements" },
+                { status: 500 }
+            );
+        }
     }
 
-    // Insert the new arrangements
-    const { data: insertedData, error: insertError } = await supabase
-        .from("arrangement")
-        .insert(insertArrangements)
-        .select(); // Include select() to get the inserted data
+    // Step 4: Retrieve the user's own arrangements after insertion using viewOwnHandler
+    const updatedArrangementsResponse = await viewOwnHandler(getRequest);
+    const updatedArrangementsResult = await updatedArrangementsResponse.json();
 
-    if (insertError) {
-        console.error("Error inserting new arrangements:", insertError);
+    console.log("Updated output of viewOwnHandler:", updatedArrangementsResult);
+
+    if (!updatedArrangementsResponse.ok) {
+        console.error(
+            "Error fetching arrangements:",
+            updatedArrangementsResult.error
+        );
         return NextResponse.json(
-            { error: "Failed to insert new arrangements" },
-            { status: 500 }
+            { error: "Failed to fetch arrangements" },
+            { status: updatedArrangementsResponse.status }
         );
     }
 
     return NextResponse.json({
-        message: "New arrangements inserted successfully",
-        data: insertedData,
+        message:
+            insertArrangements.length > 0
+                ? "Application successful"
+                : "No new arrangements to insert",
+        skippedDates,
+        arrangements: updatedArrangementsResult.data || [],
+        debugData: {
+            existingArrangements: existingArrangementsResult.data,
+            updatedArrangements: updatedArrangementsResult.data,
+        },
     });
-};
+});
 
-export const GET = checkViewOwnPermission(handler);
-export const POST = checkViewOwnPermission(createArrangement);
+export const GET = checkViewOwnPermission(async (req) => {
+    // Existing GET handler code (if you want to keep the GET method)
+    // Alternatively, you can remove this if it's not needed
+    const getRequest = new NextRequest(req.url, {
+        method: "GET",
+        headers: req.headers,
+    });
+
+    const response = await viewOwnHandler(getRequest);
+    const result = await response.json();
+
+    if (!response.ok) {
+        console.error("Error fetching arrangements:", result.error);
+        return NextResponse.json(
+            { error: "Failed to fetch arrangements" },
+            { status: response.status }
+        );
+    }
+
+    return NextResponse.json({
+        message: result.message,
+        data: result.data,
+    });
+});
