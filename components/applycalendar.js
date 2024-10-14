@@ -1,15 +1,45 @@
+import React, { useState, useEffect } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
-import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import listPlugin from "@fullcalendar/list";
 
-const ApplyCalendar = ({ arrangements }) => {
+const ApplyCalendar = ({ arrangements, onDatesChange }) => {
+    // Helper function to get date string in 'YYYY-MM-DD' format (local timezone)
+    const getDateString = (date) => {
+        const year = date.getFullYear();
+        const month = ("0" + (date.getMonth() + 1)).slice(-2); // Months are zero-based
+        const day = ("0" + date.getDate()).slice(-2);
+        return `${year}-${month}-${day}`;
+    };
+
     const today = new Date();
-    const todayStr = today.toISOString().split("T")[0]; // 'YYYY-MM-DD'
+    const todayStr = getDateString(today);
+
+    // Define the maximum selectable date (exactly 1 year from today)
+    const maxDate = new Date(
+        today.getFullYear() + 1,
+        today.getMonth(),
+        today.getDate()
+    );
+    const maxDateStr = getDateString(maxDate);
+
+    // State to keep track of selected dates
+    const [selectedDates, setSelectedDates] = useState([]);
+
+    // Create a set of dates that already have arrangements
+    const existingDatesSet = new Set(arrangements.map((arr) => arr.date));
+
+    // Convert selected dates into events to highlight them in the calendar
+    const selectedDateEvents = selectedDates.map((date) => ({
+        title: "Selected",
+        start: date,
+        allDay: true,
+        backgroundColor: "blue",
+        textColor: "white",
+    }));
 
     // Convert arrangements into FullCalendar events
-    const events = arrangements.map((arrangement) => {
+    const arrangementEvents = arrangements.map((arrangement) => {
         let backgroundColor = "";
         let textColor = "";
 
@@ -32,56 +62,143 @@ const ApplyCalendar = ({ arrangements }) => {
         };
     });
 
-    // Function to add a class to past dates to grey them out
+    // Function to add classes to day cells
     const dayCellClassNames = (arg) => {
-        const cellDateStr = arg.date.toISOString().split("T")[0]; // 'YYYY-MM-DD'
+        const date = arg.date;
+        const cellDateStr = getDateString(date);
+        let classes = [];
 
-        if (cellDateStr < todayStr) {
-            return ["disabled-date"]; // Add a custom class for disabled days
+        if (cellDateStr < todayStr || cellDateStr > maxDateStr) {
+            classes.push("disabled-date"); // Add a custom class for disabled days
         }
-        return [];
+
+        if (existingDatesSet.has(cellDateStr)) {
+            classes.push("existing-arrangement"); // Custom class for dates with existing arrangements
+        }
+
+        return classes;
     };
 
-    // Optional: Customize the event content to show status in List View
-    const renderEventContent = (eventInfo) => {
-        const { title, extendedProps } = eventInfo.event;
-        const status = extendedProps?.status ? `(${extendedProps.status})` : "";
+    // Handle date selection (range selection)
+    const handleDateSelect = (selectInfo) => {
+        let startDate = selectInfo.start;
+        let endDate = new Date(selectInfo.end.getTime() - 1); // Adjust end date
 
-        return (
-            <div>
-                <b>{title}</b> {status}{" "}
-                {/* Display the event type and status */}
-            </div>
-        );
+        let dates = [];
+        let currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+            let dateStr = getDateString(currentDate);
+
+            if (dateStr < todayStr || dateStr > maxDateStr) {
+                alert(
+                    `Cannot select date ${dateStr} as it is outside the allowed range.`
+                );
+            } else if (existingDatesSet.has(dateStr)) {
+                alert(
+                    `Cannot select date ${dateStr} as it already has an arrangement.`
+                );
+            } else {
+                dates.push(dateStr);
+            }
+
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        setSelectedDates((prevDates) => {
+            let newDates = [...prevDates];
+            dates.forEach((date) => {
+                if (!newDates.includes(date)) {
+                    newDates.push(date);
+                }
+            });
+            return newDates;
+        });
+
+        selectInfo.view.calendar.unselect(); // Clear the selection
     };
+
+    // Handle date click (select/unselect individual dates)
+    const handleDateClick = (dateClickInfo) => {
+        let date = dateClickInfo.date;
+        let dateStr = getDateString(date);
+
+        if (dateStr < todayStr || dateStr > maxDateStr) {
+            alert(
+                `Cannot select date ${dateStr} as it is outside the allowed range.`
+            );
+            return;
+        }
+
+        if (existingDatesSet.has(dateStr)) {
+            alert(
+                `Cannot select date ${dateStr} as it already has an arrangement.`
+            );
+            return;
+        }
+
+        setSelectedDates((prevDates) => {
+            if (prevDates.includes(dateStr)) {
+                // Date is already selected, unselect it
+                return prevDates.filter((date) => date !== dateStr);
+            } else {
+                // Date is not selected, select it
+                return [...prevDates, dateStr];
+            }
+        });
+    };
+
+    // Pass selected dates back to parent component
+    useEffect(() => {
+        if (onDatesChange) {
+            // Convert selectedDates array to datesDict
+            let datesDict = {};
+            selectedDates.forEach((date) => {
+                datesDict[date] = "Full-day-WFH"; // Default status or allow user to choose
+            });
+            onDatesChange(datesDict);
+        }
+    }, [selectedDates, onDatesChange]);
 
     return (
         <FullCalendar
-            plugins={[
-                dayGridPlugin,
-                timeGridPlugin,
-                interactionPlugin,
-                listPlugin,
-            ]} // Include timeGridPlugin
+            plugins={[dayGridPlugin, interactionPlugin]}
             initialView="dayGridMonth"
             headerToolbar={{
                 left: "prev,next today",
                 center: "title",
-                right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek", // Week, Day, and List views
+                right: "dayGridMonth", // Simplified for clarity
             }}
             height="auto"
-            aspectRatio={1.35} // Adjust the aspect ratio to prevent extended cells
-            events={[...events]} // Merge events with default ones
-            eventContent={renderEventContent} // Optional: Customize event content in list view
-            selectable={true} // Enable date selection
-            selectMirror={true} // Show a temporary event while selecting
-            dayCellClassNames={dayCellClassNames} // Add class names to day cells
-            selectAllow={(selectInfo) => {
-                const selectedDateStr = selectInfo.start
-                    .toISOString()
-                    .split("T")[0];
-                return selectedDateStr >= todayStr;
+            validRange={{
+                start: todayStr,
+                end: maxDateStr,
             }}
+            events={[...arrangementEvents, ...selectedDateEvents]}
+            selectable={true}
+            selectMirror={true}
+            selectMinDistance={1}
+            dayCellClassNames={dayCellClassNames}
+            selectAllow={(selectInfo) => {
+                let startDate = selectInfo.start;
+                let endDate = new Date(selectInfo.end.getTime() - 1); // Adjust end date
+
+                let currentDate = new Date(startDate);
+                while (currentDate <= endDate) {
+                    let dateStr = getDateString(currentDate);
+                    if (
+                        existingDatesSet.has(dateStr) ||
+                        dateStr < todayStr ||
+                        dateStr > maxDateStr
+                    ) {
+                        return false;
+                    }
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+                return true;
+            }}
+            select={handleDateSelect}
+            dateClick={handleDateClick}
+            unselectAuto={false} // Prevent auto-unselect after selection
         />
     );
 };

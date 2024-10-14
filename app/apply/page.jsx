@@ -6,7 +6,7 @@ import ApplyCalendar from "@/components/applycalendar";
 
 export default function OwnArrangements() {
     const [arrangements, setArrangements] = useState([]);
-    const [datesDict, setDatesDict] = useState([]);
+    const [datesDict, setDatesDict] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const supabase = createClient();
@@ -56,6 +56,11 @@ export default function OwnArrangements() {
         fetchArrangements();
     }, []);
 
+    // Callback function to receive datesDict from ApplyCalendar
+    const handleDatesChange = (newDatesDict) => {
+        setDatesDict(newDatesDict);
+    };
+
     // Function to handle the POST request
     const handleApply = async () => {
         if (!datesDict || Object.keys(datesDict).length === 0) {
@@ -96,8 +101,12 @@ export default function OwnArrangements() {
         );
 
         if (!response.ok) {
-            const errorResult = await response.json();
-            setError(errorResult.error || "Failed to apply arrangements");
+            const errorResult = await response.json().catch(() => null);
+            setError(
+                (errorResult && errorResult.error) ||
+                    "Failed to fetch arrangements"
+            );
+            setLoading(false);
             return;
         }
 
@@ -109,17 +118,15 @@ export default function OwnArrangements() {
             ...(Array.isArray(result.arrangements) ? result.arrangements : []),
         ]);
         alert(result.message || "Arrangements applied successfully");
-    };
-
-    // Callback function to receive datesDict from ApplyCalendar
-    const handleDatesChange = (newDatesDict) => {
-        setDatesDict(newDatesDict);
+        // Clear the selected dates after applying
+        setDatesDict({});
     };
 
     if (loading) return <div className="text-center mt-8">Loading...</div>;
     if (error)
         return <div className="text-center mt-8 text-red-500">{error}</div>;
-
+    // Extract selected dates from datesDict
+    const selectedDatesArray = Object.keys(datesDict);
     return (
         <div className="container mx-auto mt-8 p-4">
             <h1 className="text-2xl font-bold mb-4">Own Arrangements</h1>
@@ -190,6 +197,23 @@ export default function OwnArrangements() {
                         arrangements={arrangements}
                         onDatesChange={handleDatesChange}
                     />
+                    {/* Display the selected dates outside the calendar */}
+                    <div className="mt-4">
+                        <h2 className="text-xl font-bold mb-2">
+                            Selected Dates:
+                        </h2>
+                        {selectedDatesArray.length > 0 ? (
+                            <ul className="list-disc list-inside">
+                                {selectedDatesArray.map((date) => (
+                                    <li key={date}>
+                                        {new Date(date).toLocaleDateString()}
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p>No dates selected.</p>
+                        )}
+                    </div>
                     <button
                         onClick={handleApply}
                         className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
