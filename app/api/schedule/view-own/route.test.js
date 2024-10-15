@@ -2,14 +2,15 @@ import { NextResponse } from "next/server";
 
 // Importing the necessary utilities
 import { createClient } from "../../../../utils/supabase/server";
-import { checkViewOwnPermission } from "../../../../utils/rolePermissions";
 
 // Mocking the external dependencies so we don't hit real external systems
 jest.mock("../../../../utils/supabase/server", () => ({
+    // Import the createClient from server 
     createClient: jest.fn(), // Mock only the createClient function that initializes Supabase
 }));
 
 jest.mock("../../../../utils/rolePermissions", () => ({
+    // Import the checkViewOwnPermission from utils
     // Mock checkViewOwnPermission so we can wrap the handler without running its actual logic
     checkViewOwnPermission: jest.fn((handler) => handler),
 }));
