@@ -9,10 +9,11 @@ const Navbar = () => {
 
     // Add your routes here
     const routes = [
-        { path: '/', name: 'My Arrangements' },
-        { path: '/view-team', name: 'My Team' },
-        { path: '/view-org', name: 'Organisation' },
-    ];
+		{ path: '/', name: 'My Arrangements' },
+		{ path: '/apply', name: 'Apply for Arrangements' },
+		{ path: '/view-team', name: 'My Team' },
+		{ path: '/view-org', name: 'Organisation' },
+	];
 
     return (
         <nav className="bg-gray-800 p-4">
