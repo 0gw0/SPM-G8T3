@@ -24,6 +24,7 @@ const ViewTeamPage = () => {
                 if (error) {
                     console.error("Failed to get session:", error);
                     setError("Failed to get session");
+                    window.location.href = "/login"; // Redirect if session is invalid
                     return;
                 }
 
@@ -46,13 +47,15 @@ const ViewTeamPage = () => {
                 setRole(result.role);
 
                 if (result.role === 1 || result.role === 3) {
-                    setManagedTeamArrangements(result.managedTeam || []);
+                    setManagedTeamArrangements(
+                        ensureEmptyArrangements(result.managedTeam)
+                    );
                     setReportingManagerTeamArrangements(
-                        result.reportingManagerTeam || []
+                        ensureEmptyArrangements(result.reportingManagerTeam)
                     );
                 } else if (result.role === 2) {
                     setReportingManagerTeamArrangements(
-                        result.teamMemberArrangements || []
+                        ensureEmptyArrangements(result.teamMemberArrangements)
                     );
                 }
             } catch (err) {
@@ -66,8 +69,20 @@ const ViewTeamPage = () => {
         fetchArrangements();
     }, []);
 
+    const ensureEmptyArrangements = (team) =>
+        team.map((member) => ({
+            ...member,
+            arrangements: member.arrangements || [],
+        }));
+
     if (loading) return <div>Loading...</div>;
-    if (error) return <div>Error: {error}</div>;
+    if (error)
+        return (
+            <div className="text-red-500">
+                <h2>Error loading schedules</h2>
+                <p>{error}</p>
+            </div>
+        );
 
     return (
         <div className="p-4">
@@ -95,17 +110,17 @@ const ViewTeamPage = () => {
                     </TabPanel>
                 </Tabs>
             ) : (
-                <div>
-                    <Tabs>
-                        <TabList>
-                            <Tab>My Team</Tab>
-                        </TabList>
+                <Tabs>
+                    <TabList>
+                        <Tab>My Team</Tab>
+                    </TabList>
+                    <TabPanel>
                         <GanttChart
                             arrangements={reportingManagerTeamArrangements}
                             isLoading={loading}
                         />
-                    </Tabs>
-                </div>
+                    </TabPanel>
+                </Tabs>
             )}
         </div>
     );

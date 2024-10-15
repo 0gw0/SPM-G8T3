@@ -15,7 +15,7 @@ const handler = async (req, user, employee) => {
         if (role === 1 || role === 3) {
             console.log("Fetching arrangements for Director or Manager...");
 
-            // Fetch managed team employees
+            // Fetch managed team employees (including the logged-in employee)
             const { data: managerEmployees, error: managerEmpError } =
                 await supabase
                     .from("employee")
@@ -35,40 +35,34 @@ const handler = async (req, user, employee) => {
                 );
             }
 
-            const managedTeam = await fetchArrangementsByStaff(
-                supabase,
-                managerEmployees
-            );
+            // Include the logged-in employee in the managed team
+            const managedTeam = await fetchArrangementsByStaff(supabase, [
+                ...managerEmployees,
+                employee, // Ensure the logged-in employee is included
+            ]);
 
-            console.log("Managed Team Data:", managedTeam);
 
-            // Fetch complete details of the reporting manager
-            const { data: reportingManager, error: reportingManagerError } =
-                await supabase
-                    .from("employee")
-                    .select(
-                        "staff_id, staff_fname, staff_lname, dept, position"
-                    )
-                    .eq("staff_id", employee.reporting_manager)
-                    .single();
+            // Fetch all employees under the same reporting manager (teammates)
+            const { data: teammates, error: teammatesError } = await supabase
+                .from("employee")
+                .select("staff_id, staff_fname, staff_lname, dept, position")
+                .eq("reporting_manager", employee.reporting_manager);
 
-            if (reportingManagerError || !reportingManager) {
-                console.error(
-                    "Error fetching reporting manager details:",
-                    reportingManagerError
-                );
+            if (teammatesError) {
+                console.error("Error fetching teammates:", teammatesError);
                 return NextResponse.json(
-                    { error: "Failed to fetch reporting manager details" },
+                    { error: "Failed to fetch teammates" },
                     { status: 500 }
                 );
             }
 
+            // Include all teammates and the logged-in employee if necessary
             const reportingManagerTeam = await fetchArrangementsByStaff(
                 supabase,
-                [reportingManager]
+                teammates.some((teammate) => teammate.staff_id === staff_id)
+                    ? teammates // If the logged-in employee is already in the list, use teammates
+                    : [...teammates, employee] // Else, add the logged-in employee
             );
-
-            console.log("Reporting Manager's Team Data:", reportingManagerTeam);
 
             return NextResponse.json({
                 managedTeam: managedTeam,
@@ -76,31 +70,25 @@ const handler = async (req, user, employee) => {
                 role: role,
             });
         } else if (role === 2) {
-            console.log("Fetching arrangements for Employee...");
 
-            const { data: reportingManager, error: reportingManagerError } =
-                await supabase
-                    .from("employee")
-                    .select(
-                        "staff_id, staff_fname, staff_lname, dept, position"
-                    )
-                    .eq("staff_id", employee.reporting_manager)
-                    .single();
+            // Fetch all teammates under the same reporting manager
+            const { data: teammates, error: teammatesError } = await supabase
+                .from("employee")
+                .select("staff_id, staff_fname, staff_lname, dept, position")
+                .eq("reporting_manager", employee.reporting_manager);
 
-            if (reportingManagerError || !reportingManager) {
-                console.error(
-                    "Error fetching reporting manager details:",
-                    reportingManagerError
-                );
+            if (teammatesError) {
+                console.error("Error fetching teammates:", teammatesError);
                 return NextResponse.json(
-                    { error: "Failed to fetch reporting manager details" },
+                    { error: "Failed to fetch teammates" },
                     { status: 500 }
                 );
             }
 
+            // Ensure the logged-in employee is included with teammates
             const teamArrangements = await fetchArrangementsByStaff(supabase, [
-                { ...reportingManager },
-                { ...employee },
+                ...teammates,
+                employee, // Include the logged-in employee
             ]);
 
             console.log("Team Arrangements for Employee:", teamArrangements);
@@ -159,15 +147,16 @@ async function fetchArrangementsByStaff(supabase, employees) {
         return [];
     }
 
+    // Ensure all employees are included, even with empty `arrangements`
     const groupedArrangements = employees.map((employee) => ({
         staff_id: employee.staff_id,
         staff_fname: employee.staff_fname,
         staff_lname: employee.staff_lname,
         dept: employee.dept,
         position: employee.position,
-        arrangements: arrangements.filter(
-            (arr) => arr.staff_id === employee.staff_id
-        ),
+        arrangements:
+            arrangements.filter((arr) => arr.staff_id === employee.staff_id) ||
+            [], // Ensure an empty array if no arrangements exist
     }));
 
     return groupedArrangements;
