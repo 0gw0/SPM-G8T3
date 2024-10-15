@@ -2,7 +2,7 @@ import { Scheduler } from "@bitnoi.se/react-scheduler";
 import React from "react";
 
 // Function to transform employee data into the required format for the component
-function transformEmployeeData(employees) {
+export function transformEmployeeData(employees) {
     function capitalizeFirstLetter(string) {
         return string.charAt(0).toUpperCase() + string.slice(1);
     }
@@ -32,7 +32,8 @@ function transformEmployeeData(employees) {
                 if (
                     arrangement.status === "approved" &&
                     arrangement.start_date &&
-                    arrangement.end_date
+                    arrangement.end_date && 
+                    arrangement.location === "home"
                 ) {
                     let startDate, endDate, bgColor;
 
@@ -149,6 +150,10 @@ function transformEmployeeData(employees) {
 
 const GanttChart = ({ arrangements, isLoading }) => {
     // Transform the employee data into the required format
+    console.log("Arrangement:", arrangements);
+
+    console.log("Arrangements Input Data:", arrangements);
+
     const transformedData = transformEmployeeData(arrangements);
 
     // Log the transformed data to the console
