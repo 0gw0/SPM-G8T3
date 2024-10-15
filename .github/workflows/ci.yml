@@ -1,0 +1,29 @@
+# .github/workflows/ci.yml
+name: CI-Test-Pipeline
+
+on:
+  push:
+    branches:
+      - CI-Test-Pipeline  # Trigger CI on pushes to this branch
+  pull_request:
+    branches:
+      - CI-Test-Pipeline  # Trigger CI on pull requests targeting this branch
+
+jobs:
+  test:
+    runs-on: ubuntu-latest  # Use the latest Ubuntu environment
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3  # Clone the repository
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20.3.0
+
+      - name: Install dependencies
+        run: npm install  # Install all project dependencies
+
+      - name: Run tests
+        run: npm test -- --testMatch "**/routes/**/*.test.js"  # Run all route test files
