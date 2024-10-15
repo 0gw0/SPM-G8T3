@@ -2,7 +2,13 @@
 
 import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client.js";
-import GanttChart from "../../components/ganttChart";
+import GanttChart, {transformEmployeeData} from "../../components/ganttChart";
+
+const LoadingSpinner = () => (
+    <div className="flex justify-center items-center h-24">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+    </div>
+);
 
 export default function OrganizationArrangements() {
     const [arrangements, setArrangements] = useState([]);
@@ -57,7 +63,7 @@ export default function OrganizationArrangements() {
         ? arrangements.filter((employee) => employee.dept === selectedDepartment) // This line updates automatically
         : arrangements; // Use all arrangements when no department is selected
 
-    if (loading) return <div className="text-center mt-8">Loading...</div>;
+    if (loading) return <div className="text-center mt-8"><LoadingSpinner /></div>;
     if (error)
         return <div className="text-center mt-8 text-red-500">{error}</div>;
 
@@ -70,8 +76,73 @@ export default function OrganizationArrangements() {
         <div className="p-4">
             <h1 className="text-2xl font-bold mb-4">Organisation Arrangements</h1>
             
+            <div className="text-l font-semibold text-black-700 mb-4">
+                {`Today's Date: ${new Date().toLocaleDateString()}`}
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {(() => {
+                    // Step 1: Transform the employee data
+                    const transformedData = transformEmployeeData(arrangements);
+                    console.log("Transformed Data NOW:", transformedData);
+
+                    // Step 2: Get unique departments from transformed data
+                    const uniqueDepartments = Array.from(new Set(transformedData.map(emp => emp.label.department)));
+
+                    // Step 3: Create cards using a for loop
+                    const departmentCards = [];
+                    for (let i = 0; i < uniqueDepartments.length; i++) {
+                        const dept = uniqueDepartments[i];
+                        const todayDate = new Date().toISOString().split('T')[0];    
+
+                        // Filter employees for the current department
+                        const deptEmployees = transformedData.filter(employee => employee.label.department === dept);
+                        console.log("Filtered deptEmployees:", deptEmployees);
+
+                        // Calculate totals
+                        const totalInDept = deptEmployees.length > 0 ? deptEmployees.length : 0;
+                        let totalWFH = 0; // Initialize WFH count for the department
+                        let totalOffice = 0
+                        // Iterate through each employee in the department
+                        deptEmployees.forEach(employee => {
+                            // Check if the employee has arrangements in their data array
+                            if (Array.isArray(employee.data)) {
+                                // Iterate through the employee's arrangements
+                                employee.data.forEach(arrangement => {
+                                    // Ensure that startDate exists in the arrangement
+                                    const arrangementStartDate = arrangement.startDate.toISOString().split('T')[0]; // Format to YYYY-MM-DD
+                                    
+                                    // Check if the arrangement's start date matches today and it's WFH
+                                    if (arrangementStartDate === todayDate && arrangement.title === 'WFH') {
+                                        // If it's WFH and the date matches today, increment WFH count
+                                        totalWFH++;
+                                    }
+                                });
+                            }
+                            totalOffice = totalInDept - totalWFH
+                        });
+
+                        // Push the card component for this department
+                        departmentCards.push(
+                            <div key={dept} className="max-w-sm rounded overflow-hidden shadow-lg border border-gray-300 bg-white mb-4">
+                                <div className="px-2 py-2">
+                                    <div className="font-bold text-lg text-black">{dept} Department</div>
+                                    <p className="text-gray-800 text-base">
+                                        Total in Department: {totalInDept}<br />
+                                        Total Work from Home: {totalWFH} <br/>
+                                        Total in Office: {totalOffice}
+                                    </p>
+                                </div>
+                            </div>
+                        );
+                    }
+
+                    return departmentCards; // Return the array of cards
+                })()}
+            </div>
+
             <div style={{ marginBottom: '20px' }}>
-                <label htmlFor="department" style={{ color: 'white', marginRight: '8px', fontWeight: 'bold' }}>Select Department:</label>
+                <label htmlFor="department" style={{ color: 'black', marginRight: '8px', fontWeight: 'bold' }}>Filter by Department:</label>
                 <select
                     id="department"
                     value={selectedDepartment}
