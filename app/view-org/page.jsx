@@ -40,6 +40,13 @@ export default function OrganizationArrangements() {
                 },
             });
 
+            if (response.status === 403) {
+                // Custom message for 403 Forbidden errors
+                setError("You do not have permission to view these arrangements.");
+                setLoading(false);
+                return;
+            }
+            
             if (!response.ok) {
                 setError("Failed to fetch arrangements");
                 setLoading(false);
