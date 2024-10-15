@@ -26,4 +26,4 @@ jobs:
         run: npm install  # Install all project dependencies
 
       - name: Run tests
-        run: npm test -- --testMatch "**/routes/**/*.test.js"  # Run all route test files
+        run: npm test -- --testMatch "**/app/api/**/*.test.js"  # Run all route test files
