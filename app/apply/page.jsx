@@ -62,7 +62,9 @@ export default function OwnArrangements() {
 
     // Callback function to receive datesDict from ApplyCalendar
     const handleDatesChange = (newDatesDict) => {
-        setDatesDict(newDatesDict);
+        if (JSON.stringify(newDatesDict) !== JSON.stringify(datesDict)) {
+            setDatesDict(newDatesDict);
+        }
     };
 
     // Handlers for reason and attachment
@@ -112,9 +114,6 @@ export default function OwnArrangements() {
         const requestBody = new FormData();
         requestBody.append("dates", JSON.stringify(datesDict)); // Append datesDict as JSON string
         requestBody.append("reason", reason);
-        if (attachment) {
-            requestBody.append("attachment", attachment); // Append the PDF file
-        }
 
         const response = await fetch(
             `/api/schedule/apply?employee_id=${employee_id}`,

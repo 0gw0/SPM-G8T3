@@ -39,19 +39,32 @@ export const POST = checkViewOwnPermission(async (req) => {
             );
         }
 
-        // Parse the request body to get the dates dictionary
-        let body;
-        try {
-            body = await req.json();
-        } catch (error) {
-            console.error("Error parsing request body:", error);
-            return NextResponse.json(
-                { error: "Invalid request body" },
-                { status: 400 }
-            );
+        // Check if the request is sending FormData or JSON
+        const contentType = req.headers.get("content-type") || "";
+        let datesDict, reason;
+
+        if (contentType.includes("multipart/form-data")) {
+            // If FormData, parse it using `formData()`
+            const formData = await req.formData();
+            const dates = formData.get("dates");
+            reason = formData.get("reason");
+
+            if (!dates || !reason) {
+                return NextResponse.json(
+                    { error: "Missing dates or reason" },
+                    { status: 400 }
+                );
+            }
+
+            // Parse dates JSON string into an object
+            datesDict = JSON.parse(dates);
+        } else {
+            // If JSON, parse it using `json()`
+            const body = await req.json();
+            datesDict = body.dates;
+            reason = body.reason;
         }
 
-        const datesDict = body.dates; // The dates dictionary from the request body
         if (!datesDict || typeof datesDict !== "object") {
             return NextResponse.json(
                 { error: "Invalid dates dictionary" },
@@ -106,7 +119,7 @@ export const POST = checkViewOwnPermission(async (req) => {
                 type: "full-day", // Assuming 'type' is the status from datesDict
                 status: "pending", // Set initial status to 'pending' or as required
                 location: "home", // Set the location as per your requirements
-                // Include other fields like 'reason', 'start_date', 'end_date' if necessary
+                reason,
             });
         }
 
