@@ -30,23 +30,23 @@ const ApplyCalendar = ({ arrangements, selectedDates, onDatesChange }) => {
 			title: type,
 			start: date,
 			allDay: true,
-			className: 'bg-blue-500 text-white',
+			classNames: ['bg-blue-500', 'text-white'],
 		})
 	);
 
 	const arrangementEvents = arrangements.map((arrangement) => {
-		let className;
+		let classNames;
 
 		switch (arrangement.status) {
 			case 'approved':
-				className = 'bg-green-500 text-white';
+				classNames = ['bg-green-500', 'text-white'];
 				break;
 			case 'rejected':
-				className = 'bg-red-500 text-white';
+				classNames = ['bg-red-500', 'text-white'];
 				break;
 			case 'pending':
 			default:
-				className = 'bg-yellow-400 text-black';
+				classNames = ['bg-yellow-400', 'text-black'];
 				break;
 		}
 
@@ -54,7 +54,7 @@ const ApplyCalendar = ({ arrangements, selectedDates, onDatesChange }) => {
 			title: arrangement.type,
 			start: arrangement.date,
 			allDay: true,
-			className,
+			classNames,
 			extendedProps: { status: arrangement.status },
 		};
 	});
@@ -155,25 +155,26 @@ const ApplyCalendar = ({ arrangements, selectedDates, onDatesChange }) => {
 
 	return (
 		<div className="max-w-4xl mx-auto p-4">
-			<FullCalendar
-				plugins={[dayGridPlugin, interactionPlugin]}
-				initialView="dayGridMonth"
-				headerToolbar={{
-					left: 'prev,next today',
-					center: 'title',
-					right: 'dayGridMonth',
-				}}
-				height="auto"
-				validRange={{ start: todayStr, end: maxDateStr }}
-				events={[...arrangementEvents, ...selectedDateEvents]}
-				selectable={true}
-				selectMirror={true}
-				dayCellClassNames={dayCellClassNames}
-				select={handleDateSelect}
-				dateClick={handleDateClick}
-				unselectAuto={false}
-				className="border border-gray-200 shadow-lg rounded-lg overflow-hidden"
-			/>
+			<div className="border border-gray-200 shadow-lg rounded-lg overflow-hidden">
+				<FullCalendar
+					plugins={[dayGridPlugin, interactionPlugin]}
+					initialView="dayGridMonth"
+					headerToolbar={{
+						left: 'prev,next today',
+						center: 'title',
+						right: 'dayGridMonth',
+					}}
+					height="auto"
+					validRange={{ start: todayStr, end: maxDateStr }}
+					events={[...arrangementEvents, ...selectedDateEvents]}
+					selectable={true}
+					selectMirror={true}
+					dayCellClassNames={dayCellClassNames}
+					select={handleDateSelect}
+					dateClick={handleDateClick}
+					unselectAuto={false}
+				/>
+			</div>
 			<Legend />
 		</div>
 	);
