@@ -104,7 +104,7 @@ export const POST = checkViewOwnPermission(async (req) => {
 		const skippedDates = [];
 
 		// Prepare new arrangements, skipping dates with existing arrangements
-		for (const [date, status] of Object.entries(datesDict)) {
+		for (const [date, type] of Object.entries(datesDict)) {
 			if (existingDatesSet.has(date)) {
 				// Arrangement already exists for this date, skip insertion
 				skippedDates.push(date);
@@ -116,7 +116,7 @@ export const POST = checkViewOwnPermission(async (req) => {
 				staff_id,
 				date,
 				recurrence_pattern: 'one-time',
-				type: 'full-day', // Assuming 'type' is the status from datesDict
+				type, // Use the type provided in datesDict
 				status: 'pending', // Set initial status to 'pending' or as required
 				location: 'home', // Set the location as per your requirements
 				reason,
