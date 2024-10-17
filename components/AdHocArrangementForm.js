@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { createClient } from '@/utils/supabase/client.js';
 import ApplyCalendar from '@/components/applycalendar';
 
-const AdHocArrangementForm = ({ arrangements, onNewArrangement }) => {
+const AdHocArrangementForm = ({
+	arrangements,
+	onNewArrangement,
+	onArrangementsUpdate,
+}) => {
 	const [datesDict, setDatesDict] = useState({});
 	const [reason, setReason] = useState('');
 	const [attachment, setAttachment] = useState(null);
@@ -91,9 +95,14 @@ const AdHocArrangementForm = ({ arrangements, onNewArrangement }) => {
 				await sendEmailNotification(employee_id, attachment);
 			}
 
-			onNewArrangement(result.arrangements[0]);
+			// Update the local state with the new arrangements
+			if (result.arrangements && result.arrangements.length > 0) {
+				onArrangementsUpdate(result.arrangements);
+			}
+
 			alert(result.message || 'Arrangements applied successfully');
 
+			// Clear the form
 			setDatesDict({});
 			setReason('');
 			setAttachment(null);
