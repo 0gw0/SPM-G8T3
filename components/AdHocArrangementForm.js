@@ -10,9 +10,22 @@ const AdHocArrangementForm = ({ arrangements, onNewArrangement }) => {
 	const supabase = createClient();
 
 	const handleDatesChange = (newDatesDict) => {
-		if (JSON.stringify(newDatesDict) !== JSON.stringify(datesDict)) {
-			setDatesDict(newDatesDict);
-		}
+		setDatesDict(newDatesDict);
+	};
+
+	const handleTypeChange = (date, type) => {
+		setDatesDict((prev) => ({
+			...prev,
+			[date]: type,
+		}));
+	};
+
+	const handleDateRemove = (dateToRemove) => {
+		setDatesDict((prev) => {
+			const newDatesDict = { ...prev };
+			delete newDatesDict[dateToRemove];
+			return newDatesDict;
+		});
 	};
 
 	const handleReasonChange = (e) => {
@@ -30,7 +43,7 @@ const AdHocArrangementForm = ({ arrangements, onNewArrangement }) => {
 	};
 
 	const handleApply = async () => {
-		if (!datesDict || Object.keys(datesDict).length === 0) {
+		if (Object.keys(datesDict).length === 0) {
 			alert('Please select at least one date before applying.');
 			return;
 		}
@@ -126,22 +139,46 @@ const AdHocArrangementForm = ({ arrangements, onNewArrangement }) => {
 		}
 	};
 
-	const selectedDatesArray = Object.keys(datesDict);
+	// Sort the dates in ascending order
+	const sortedDates = Object.entries(datesDict).sort(
+		(a, b) => new Date(a[0]) - new Date(b[0])
+	);
 
 	return (
 		<>
 			<ApplyCalendar
 				arrangements={arrangements}
+				selectedDates={datesDict}
 				onDatesChange={handleDatesChange}
 			/>
 
 			<div className="mt-4">
 				<h2 className="text-xl font-bold mb-2">Selected Dates:</h2>
-				{selectedDatesArray.length > 0 ? (
-					<ul className="list-disc list-inside">
-						{selectedDatesArray.map((date) => (
-							<li key={date}>
-								{new Date(date).toLocaleDateString()}
+				{sortedDates.length > 0 ? (
+					<ul className="list-none p-0">
+						{sortedDates.map(([date, type]) => (
+							<li key={date} className="mb-2 flex items-center">
+								<span className="mr-2">
+									{new Date(date).toLocaleDateString()}
+								</span>
+								<select
+									value={type}
+									onChange={(e) =>
+										handleTypeChange(date, e.target.value)
+									}
+									className="mr-2 p-1 border rounded"
+								>
+									<option value="full-day">Full-day</option>
+									<option value="morning">Morning</option>
+									<option value="afternoon">Afternoon</option>
+								</select>
+								<button
+									onClick={() => handleDateRemove(date)}
+									className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 focus:outline-none"
+									aria-label="Remove date"
+								>
+									&#x2715;
+								</button>
 							</li>
 						))}
 					</ul>
