@@ -70,8 +70,6 @@ export default function OwnArrangements() {
 		setArrangements(newArrangements);
 	};
 
-	console.log(arrangements);
-
 	if (loading) return <div className="text-center mt-8">Loading...</div>;
 	if (error)
 		return <div className="text-center mt-8 text-red-500">{error}</div>;

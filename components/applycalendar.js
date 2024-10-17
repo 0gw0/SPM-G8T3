@@ -30,22 +30,31 @@ const ApplyCalendar = ({ arrangements, selectedDates, onDatesChange }) => {
 			title: type,
 			start: date,
 			allDay: true,
-			backgroundColor: 'blue',
-			textColor: 'white',
+			className: 'bg-blue-500 text-white',
 		})
 	);
 
 	const arrangementEvents = arrangements.map((arrangement) => {
-		const backgroundColor =
-			arrangement.status === 'approved' ? 'green' : 'yellow';
-		const textColor = arrangement.status === 'pending' ? 'black' : 'white';
+		let className;
+
+		switch (arrangement.status) {
+			case 'approved':
+				className = 'bg-green-500 text-white';
+				break;
+			case 'rejected':
+				className = 'bg-red-500 text-white';
+				break;
+			case 'pending':
+			default:
+				className = 'bg-yellow-400 text-black';
+				break;
+		}
 
 		return {
 			title: arrangement.type,
 			start: arrangement.date,
 			allDay: true,
-			backgroundColor,
-			textColor,
+			className,
 			extendedProps: { status: arrangement.status },
 		};
 	});
@@ -55,10 +64,10 @@ const ApplyCalendar = ({ arrangements, selectedDates, onDatesChange }) => {
 		let classes = [];
 
 		if (cellDateStr < todayStr || cellDateStr > maxDateStr) {
-			classes.push('disabled-date');
+			classes.push('bg-gray-200 cursor-not-allowed');
 		}
 		if (existingDatesSet.has(cellDateStr)) {
-			classes.push('existing-arrangement');
+			classes.push('border-2 border-blue-500');
 		}
 		return classes;
 	};
@@ -123,25 +132,50 @@ const ApplyCalendar = ({ arrangements, selectedDates, onDatesChange }) => {
 		}, 100);
 	};
 
+	const Legend = () => (
+		<div className="flex justify-center items-center space-x-4 mb-4">
+			<div className="flex items-center">
+				<span className="inline-block w-5 h-5 bg-green-500 mr-2"></span>
+				<span>Approved</span>
+			</div>
+			<div className="flex items-center">
+				<span className="inline-block w-5 h-5 bg-red-500 mr-2"></span>
+				<span>Rejected</span>
+			</div>
+			<div className="flex items-center">
+				<span className="inline-block w-5 h-5 bg-yellow-400 mr-2"></span>
+				<span>Pending</span>
+			</div>
+			<div className="flex items-center">
+				<span className="inline-block w-5 h-5 bg-blue-500 mr-2"></span>
+				<span>Selected</span>
+			</div>
+		</div>
+	);
+
 	return (
-		<FullCalendar
-			plugins={[dayGridPlugin, interactionPlugin]}
-			initialView="dayGridMonth"
-			headerToolbar={{
-				left: 'prev,next today',
-				center: 'title',
-				right: 'dayGridMonth',
-			}}
-			height="auto"
-			validRange={{ start: todayStr, end: maxDateStr }}
-			events={[...arrangementEvents, ...selectedDateEvents]}
-			selectable={true}
-			selectMirror={true}
-			dayCellClassNames={dayCellClassNames}
-			select={handleDateSelect}
-			dateClick={handleDateClick}
-			unselectAuto={false}
-		/>
+		<div className="max-w-4xl mx-auto p-4">
+			<FullCalendar
+				plugins={[dayGridPlugin, interactionPlugin]}
+				initialView="dayGridMonth"
+				headerToolbar={{
+					left: 'prev,next today',
+					center: 'title',
+					right: 'dayGridMonth',
+				}}
+				height="auto"
+				validRange={{ start: todayStr, end: maxDateStr }}
+				events={[...arrangementEvents, ...selectedDateEvents]}
+				selectable={true}
+				selectMirror={true}
+				dayCellClassNames={dayCellClassNames}
+				select={handleDateSelect}
+				dateClick={handleDateClick}
+				unselectAuto={false}
+				className="border border-gray-200 shadow-lg rounded-lg overflow-hidden"
+			/>
+			<Legend />
+		</div>
 	);
 };
 
