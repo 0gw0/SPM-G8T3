@@ -82,3 +82,22 @@ export const checkViewTeamPermission = (handler) => async (req) => {
         return NextResponse.json({ error: "Invalid role" }, { status: 403 });
     })(req);
 };
+
+export const checkApprovalPermission = (handler) => async (req) => {
+    return checkRolePermission(async (req, user, employee) => {
+        // Check if the employee is a regular user (role 2)
+        if (employee.role === 2) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        // Check if the employee is a director (role 3) or manager (role 1)
+        if (employee.role === 3 || employee.role === 1) {
+            // Allow access to view data of those reporting to them
+            return handler(req, user, employee);
+        }
+
+        // If the role does not match the permissions, return forbidden
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    })(req);
+};
+
