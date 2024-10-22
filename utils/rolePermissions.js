@@ -42,16 +42,6 @@ export const checkViewOrgPermission = (handler) => async (req) => {
     })(req);
 };
 
-export const checkViewTeamPermission = (handler) => async (req) => {
-    return checkRolePermission(async (req, user, employee) => {
-        // Log the user metadata to ensure role is being passed correctly
-        console.log("User metadata:", user.user_metadata);
-        console.log("Employee:", employee);
-        
-        return handler(req, user, employee);
-    })(req);
-};
-
 export const checkViewOwnPermission = (handler) => async (req) => {
     return checkRolePermission(async (req, user, employee) => {
         const { searchParams } = new URL(req.url);
@@ -66,5 +56,29 @@ export const checkViewOwnPermission = (handler) => async (req) => {
             return handler(req, user, employee);
         }
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    })(req);
+};
+
+export const checkViewTeamPermission = (handler) => async (req) => {
+    return checkRolePermission(async (req, user, employee) => {
+        // Log the user metadata to ensure role is being passed correctly
+        console.log("User metadata:", user.user_metadata);
+        console.log("Employee:", employee);
+
+        const role = employee.role;
+        console.log("Role received:", role);
+
+        // Check permissions based on role
+        if (role === 1 || role === 3) {
+            // If the user is a Director or Manager, proceed with fetching their team arrangements
+            return handler(req, user, employee, true);
+        } else if (role === 2) {
+            // If the user is a Staff, proceed with fetching their team arrangements
+            return handler(req, user, employee, false);
+        }
+
+        // Fallback for any other role (shouldn't be reached due to permissions)
+        console.error("Invalid role or role not handled.");
+        return NextResponse.json({ error: "Invalid role" }, { status: 403 });
     })(req);
 };

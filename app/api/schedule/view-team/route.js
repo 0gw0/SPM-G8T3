@@ -3,19 +3,18 @@ import { checkViewTeamPermission } from "@/utils/rolePermissions";
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
-const handler = async (req, user, employee) => {
+const handler = async (req, user, employee, isManagerOrDirector) => {
     const supabase = createClient();
     const staff_id = employee.staff_id;
-    const role = employee.role;
 
-    console.log("Role received:", role);
-    console.log("Employee ID:", staff_id);
+    // Check if employee is an MD (reports to themselves)
+    const isMD = employee.staff_id === employee.reporting_manager;
 
     try {
-        if (role === 1 || role === 3) {
+        if (isManagerOrDirector) {
             console.log("Fetching arrangements for Director or Manager...");
 
-            // Fetch managed team employees (including the logged-in employee)
+            // Fetch managed team employees
             const { data: managerEmployees, error: managerEmpError } =
                 await supabase
                     .from("employee")
@@ -35,12 +34,50 @@ const handler = async (req, user, employee) => {
                 );
             }
 
-            // Include the logged-in employee in the managed team
-            const managedTeam = await fetchArrangementsByStaff(supabase, [
-                ...managerEmployees,
-                employee, // Ensure the logged-in employee is included
-            ]);
+            // For MD Jack Sim, only return the managed team view
+            if (isMD) {
+                const managedTeam = await fetchArrangementsByStaff(
+                    supabase,
+                    managerEmployees,
+                    employee
+                );
 
+                return NextResponse.json({
+                    managedTeam: managedTeam,
+                    role: employee.role,
+                });
+            }
+
+            // For non-MD managers/directors, continue with both views
+            const managedTeam = await fetchArrangementsByStaff(
+                supabase,
+                managerEmployees,
+                employee
+            );
+
+            // Fetch the reporting manager's information (if not MD)
+            const { data: reportingManager, error: reportingManagerError } =
+                await supabase
+                    .from("employee")
+                    .select(
+                        "staff_id, staff_fname, staff_lname, dept, position"
+                    )
+                    .eq("staff_id", employee.reporting_manager)
+                    .single();
+
+            if (
+                reportingManagerError &&
+                reportingManagerError.code !== "PGRST116"
+            ) {
+                console.error(
+                    "Error fetching reporting manager:",
+                    reportingManagerError
+                );
+                return NextResponse.json(
+                    { error: "Failed to fetch reporting manager" },
+                    { status: 500 }
+                );
+            }
 
             // Fetch all employees under the same reporting manager (teammates)
             const { data: teammates, error: teammatesError } = await supabase
@@ -56,20 +93,46 @@ const handler = async (req, user, employee) => {
                 );
             }
 
-            // Include all teammates and the logged-in employee if necessary
+            // Include all teammates, reporting manager, and the logged-in employee
             const reportingManagerTeam = await fetchArrangementsByStaff(
                 supabase,
-                teammates.some((teammate) => teammate.staff_id === staff_id)
-                    ? teammates // If the logged-in employee is already in the list, use teammates
-                    : [...teammates, employee] // Else, add the logged-in employee
+                reportingManager ? [...teammates, reportingManager] : teammates,
+                employee
             );
 
             return NextResponse.json({
                 managedTeam: managedTeam,
                 reportingManagerTeam: reportingManagerTeam,
-                role: role,
+                role: employee.role,
             });
-        } else if (role === 2) {
+        }
+        // role 2 employees
+        else {
+            console.log("Fetching arrangements for Employee...");
+
+            // Fetch the reporting manager's information
+            const { data: reportingManager, error: reportingManagerError } =
+                await supabase
+                    .from("employee")
+                    .select(
+                        "staff_id, staff_fname, staff_lname, dept, position"
+                    )
+                    .eq("staff_id", employee.reporting_manager)
+                    .single();
+
+            if (
+                reportingManagerError &&
+                reportingManagerError.code !== "PGRST116"
+            ) {
+                console.error(
+                    "Error fetching reporting manager:",
+                    reportingManagerError
+                );
+                return NextResponse.json(
+                    { error: "Failed to fetch reporting manager" },
+                    { status: 500 }
+                );
+            }
 
             // Fetch all teammates under the same reporting manager
             const { data: teammates, error: teammatesError } = await supabase
@@ -85,22 +148,25 @@ const handler = async (req, user, employee) => {
                 );
             }
 
-            // Ensure the logged-in employee is included with teammates
-            const teamArrangements = await fetchArrangementsByStaff(supabase, [
-                ...teammates,
-                employee, // Include the logged-in employee
-            ]);
+            // Combine teammates with reporting manager
+            const allTeamMembers = reportingManager
+                ? [...teammates, reportingManager]
+                : teammates;
+
+            // Ensure the logged-in employee is included with teammates, with the employee's data first
+            const teamArrangements = await fetchArrangementsByStaff(
+                supabase,
+                allTeamMembers,
+                employee
+            );
 
             console.log("Team Arrangements for Employee:", teamArrangements);
 
             return NextResponse.json({
                 teamMemberArrangements: teamArrangements,
-                role: role,
+                role: employee.role,
             });
         }
-
-        console.error("Invalid role or role not handled.");
-        return NextResponse.json({ error: "Invalid role" }, { status: 403 });
     } catch (error) {
         console.error("Unexpected error:", error);
         return NextResponse.json(
@@ -111,7 +177,7 @@ const handler = async (req, user, employee) => {
 };
 
 // Helper function to fetch and group arrangements by staff_id
-async function fetchArrangementsByStaff(supabase, employees) {
+async function fetchArrangementsByStaff(supabase, employees, loggedInEmployee) {
     const staffIds = employees.map((emp) => emp.staff_id);
 
     const { data: arrangements, error } = await supabase
@@ -147,8 +213,18 @@ async function fetchArrangementsByStaff(supabase, employees) {
         return [];
     }
 
-    // Ensure all employees are included, even with empty `arrangements`
-    const groupedArrangements = employees.map((employee) => ({
+    // Remove duplicates based on staff_id
+    const uniqueEmployees = [
+        loggedInEmployee,
+        ...employees.filter(
+            (emp) => emp.staff_id !== loggedInEmployee.staff_id
+        )
+    ].filter((emp, index, self) => 
+        index === self.findIndex((e) => e.staff_id === emp.staff_id)
+    );
+
+    // Ensure all employees are included, even with empty arrangements
+    const groupedArrangements = uniqueEmployees.map((employee) => ({
         staff_id: employee.staff_id,
         staff_fname: employee.staff_fname,
         staff_lname: employee.staff_lname,
@@ -156,10 +232,11 @@ async function fetchArrangementsByStaff(supabase, employees) {
         position: employee.position,
         arrangements:
             arrangements.filter((arr) => arr.staff_id === employee.staff_id) ||
-            [], // Ensure an empty array if no arrangements exist
+            [],
     }));
 
     return groupedArrangements;
 }
 
+// Applying the permission handler
 export const GET = checkViewTeamPermission(handler);

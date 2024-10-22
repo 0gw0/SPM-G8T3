@@ -12,6 +12,7 @@ const ViewTeamPage = () => {
         setReportingManagerTeamArrangements,
     ] = useState([]);
     const [role, setRole] = useState(null);
+    const [isMD, setIsMD] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const supabase = createClient();
@@ -24,13 +25,11 @@ const ViewTeamPage = () => {
                 if (error) {
                     console.error("Failed to get session:", error);
                     setError("Failed to get session");
-                    window.location.href = "/login"; // Redirect if session is invalid
+                    window.location.href = "/login";
                     return;
                 }
 
-                console.log("Session data:", data);
                 const token = data.session.access_token;
-
                 const response = await fetch(`/api/schedule/view-team`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
@@ -42,21 +41,34 @@ const ViewTeamPage = () => {
                 }
 
                 const result = await response.json();
-                console.log("API Response:", result);
-
                 setRole(result.role);
 
+                // Check if user is an MD (will only have managedTeam in response)
+                const isManagingDirector =
+                    result.role === 1 && !result.reportingManagerTeam;
+                setIsMD(isManagingDirector);
+
                 if (result.role === 1 || result.role === 3) {
-                    setManagedTeamArrangements(
+                    // Remove duplicates from managedTeam
+                    const uniqueManagedTeam = removeDuplicateEmployees(
                         ensureEmptyArrangements(result.managedTeam)
                     );
-                    setReportingManagerTeamArrangements(
-                        ensureEmptyArrangements(result.reportingManagerTeam)
-                    );
+                    setManagedTeamArrangements(uniqueManagedTeam);
+
+                    // Only set reporting manager team if not MD
+                    if (!isManagingDirector && result.reportingManagerTeam) {
+                        const uniqueReportingTeam = removeDuplicateEmployees(
+                            ensureEmptyArrangements(result.reportingManagerTeam)
+                        );
+                        setReportingManagerTeamArrangements(
+                            uniqueReportingTeam
+                        );
+                    }
                 } else if (result.role === 2) {
-                    setReportingManagerTeamArrangements(
+                    const uniqueTeam = removeDuplicateEmployees(
                         ensureEmptyArrangements(result.teamMemberArrangements)
                     );
+                    setReportingManagerTeamArrangements(uniqueTeam);
                 }
             } catch (err) {
                 console.error("Unexpected error:", err);
@@ -75,6 +87,14 @@ const ViewTeamPage = () => {
             arrangements: member.arrangements || [],
         }));
 
+    const removeDuplicateEmployees = (team) => {
+        return team.filter(
+            (employee, index, self) =>
+                index ===
+                self.findIndex((e) => e.staff_id === employee.staff_id)
+        );
+    };
+
     if (loading) return <div>Loading...</div>;
     if (error)
         return (
@@ -84,6 +104,22 @@ const ViewTeamPage = () => {
             </div>
         );
 
+    // For MD, show single view
+    if (isMD) {
+        return (
+            <div className="p-4">
+                <h1 className="text-2xl font-bold mb-6">Team Schedules</h1>
+                <div className="mb-4">
+                    <GanttChart
+                        arrangements={managedTeamArrangements}
+                        isLoading={loading}
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    // For other roles (Manager/Director), show tabs
     return (
         <div className="p-4">
             <h1 className="text-2xl font-bold mb-6">Team Schedules</h1>
