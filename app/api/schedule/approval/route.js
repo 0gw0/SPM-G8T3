@@ -117,49 +117,9 @@ const handler = async (req, user, employee) => {
     });
 };
 
-// PUT method to update an arrangement
-const putHandler = async (req) => {
-    const supabase = createClient();
 
-    if (!supabase) {
-        console.error("Failed to create Supabase client");
-        return NextResponse.json(
-            { error: "Internal server error" },
-            { status: 500 }
-        );
-    }
-
-    const { arrangement_id, updatedArrangement } = await req.json(); // Extract the arrangement data from the request body
-
-    // Ensure the necessary fields are present
-    if (!arrangement_id || !updatedArrangement) {
-        return NextResponse.json(
-            { error: "Invalid data provided" },
-            { status: 400 }
-        );
-    }
-
-    // Update the arrangement in the database
-    const { error: updateError } = await supabase
-        .from("arrangement")
-        .update(updatedArrangement)
-        .eq("arrangement_id", arrangement_id);
-
-    if (updateError) {
-        console.error("Error updating arrangement:", updateError);
-        return NextResponse.json(
-            { error: "Failed to update arrangement" },
-            { status: 500 }
-        );
-    }
-
-    return NextResponse.json({
-        message: "Arrangement updated successfully",
-    });
-};
 
 export const GET = checkApprovalPermission(handler);
-export const PUT = checkApprovalPermission(putHandler);
 
 
 
