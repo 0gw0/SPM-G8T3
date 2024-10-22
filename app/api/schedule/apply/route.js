@@ -12,7 +12,7 @@ const doArrangementsConflict = (type1, type2) => {
 };
 
 export const POST = checkViewOwnPermission(async (req) => {
-	let arrangementsToDelete = []; // Define this at the top level
+	let arrangementsToDelete = [];
 
 	try {
 		const supabase = createClient();
@@ -47,6 +47,29 @@ export const POST = checkViewOwnPermission(async (req) => {
 			);
 		}
 
+		// Fetch the employee's reporting manager
+		const { data: employeeData, error: employeeError } = await supabase
+			.from('employee')
+			.select('reporting_manager')
+			.eq('staff_id', staff_id)
+			.single();
+
+		if (employeeError) {
+			console.error('Error fetching employee data:', employeeError);
+			return NextResponse.json(
+				{ error: 'Failed to fetch employee data' },
+				{ status: 500 }
+			);
+		}
+
+		if (!employeeData?.reporting_manager) {
+			console.error('No reporting manager found for employee');
+			return NextResponse.json(
+				{ error: 'No reporting manager assigned' },
+				{ status: 400 }
+			);
+		}
+
 		const formData = await req.formData();
 		const arrangementType = formData.get('arrangementType');
 
@@ -66,6 +89,7 @@ export const POST = checkViewOwnPermission(async (req) => {
 					status: 'pending',
 					location: 'home',
 					reason,
+					manager_id: employeeData.reporting_manager,
 				});
 			}
 		} else if (arrangementType === 'recurring') {
@@ -76,14 +100,12 @@ export const POST = checkViewOwnPermission(async (req) => {
 				const type = formData.get('type');
 				const reason = formData.get('reason');
 
-				// Generate all dates for the recurring arrangement
 				const recurringDates = generateRecurringDates(
 					start_date,
 					end_date,
 					recurrence_pattern
 				);
 
-				// Find existing ad-hoc arrangements that might conflict
 				const { data: existingArrangements, error: fetchError } =
 					await supabase
 						.from('arrangement')
@@ -98,14 +120,12 @@ export const POST = checkViewOwnPermission(async (req) => {
 					);
 				}
 
-				// Identify arrangements to delete
 				arrangementsToDelete = existingArrangements
 					.filter((existing) =>
 						doArrangementsConflict(existing.type, type)
 					)
 					.map((arr) => arr.arrangement_id);
 
-				// Delete conflicting ad-hoc arrangements if any exist
 				if (arrangementsToDelete.length > 0) {
 					const { error: deleteError } = await supabase
 						.from('arrangement')
@@ -119,7 +139,6 @@ export const POST = checkViewOwnPermission(async (req) => {
 					}
 				}
 
-				// Insert the recurring arrangement
 				insertArrangements.push({
 					staff_id,
 					date: start_date,
@@ -130,6 +149,7 @@ export const POST = checkViewOwnPermission(async (req) => {
 					status: 'pending',
 					location: 'home',
 					reason,
+					manager_id: employeeData.reporting_manager,
 				});
 			} catch (recurringError) {
 				console.error(
