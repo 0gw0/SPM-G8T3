@@ -39,104 +39,66 @@ export const POST = checkViewOwnPermission(async (req) => {
 			);
 		}
 
-		// Check if the request is sending FormData or JSON
-		const contentType = req.headers.get('content-type') || '';
-		let datesDict, reason;
+		// Parse the request body
+		const formData = await req.formData();
+		const arrangementType = formData.get('arrangementType');
 
-		if (contentType.includes('multipart/form-data')) {
-			// If FormData, parse it using `formData()`
-			const formData = await req.formData();
-			const dates = formData.get('dates');
-			reason = formData.get('reason');
+		let insertArrangements = [];
 
-			if (!dates || !reason) {
-				return NextResponse.json(
-					{ error: 'Missing dates or reason' },
-					{ status: 400 }
-				);
+		if (arrangementType === 'adhoc') {
+			// Process ad-hoc arrangements
+			const dates = JSON.parse(formData.get('dates'));
+			const reason = formData.get('reason');
+
+			for (const [date, type] of Object.entries(dates)) {
+				insertArrangements.push({
+					staff_id,
+					date,
+					recurrence_pattern: 'one-time',
+					type,
+					status: 'pending',
+					location: 'home',
+					reason,
+				});
 			}
+		} else if (arrangementType === 'recurring') {
+			// Process recurring arrangement
+			const start_date = formData.get('start_date');
+			const end_date = formData.get('end_date');
+			const recurrence_pattern = formData.get('recurrence_pattern');
+			const type = formData.get('type');
+			const reason = formData.get('reason');
 
-			// Parse dates JSON string into an object
-			datesDict = JSON.parse(dates);
+			insertArrangements.push({
+				staff_id,
+				date: start_date, // Use start_date as the initial date
+				start_date,
+				end_date,
+				recurrence_pattern,
+				type,
+				status: 'pending',
+				location: 'home',
+				reason,
+			});
 		} else {
-			// If JSON, parse it using `json()`
-			const body = await req.json();
-			datesDict = body.dates;
-			reason = body.reason;
-		}
-
-		if (!datesDict || typeof datesDict !== 'object') {
 			return NextResponse.json(
-				{ error: 'Invalid dates dictionary' },
+				{ error: 'Invalid arrangement type' },
 				{ status: 400 }
 			);
 		}
 
-		// Fetch existing arrangements for the user
-		const getRequestForExisting = new NextRequest(req.url, {
-			method: 'GET',
-			headers: req.headers,
-		});
+		// Insert the new arrangement(s)
+		const { data: insertedData, error: insertError } = await supabase
+			.from('arrangement')
+			.insert(insertArrangements)
+			.select();
 
-		const existingArrangementsResponse = await viewOwnHandler(
-			getRequestForExisting
-		);
-		const existingArrangementsResult =
-			await existingArrangementsResponse.json();
-
-		if (!existingArrangementsResponse.ok) {
-			console.error(
-				'Error fetching existing arrangements:',
-				existingArrangementsResult.error
-			);
+		if (insertError) {
+			console.error('Error inserting new arrangement:', insertError);
 			return NextResponse.json(
-				{ error: 'Failed to fetch existing arrangements' },
-				{ status: existingArrangementsResponse.status }
+				{ error: 'Failed to insert new arrangement' },
+				{ status: 500 }
 			);
-		}
-
-		// Create a Set of dates the user already has arrangements for
-		const existingDatesSet = new Set(
-			existingArrangementsResult.data.map((arr) => arr.date)
-		);
-
-		const insertArrangements = [];
-		const skippedDates = [];
-
-		// Prepare new arrangements, skipping dates with existing arrangements
-		for (const [date, type] of Object.entries(datesDict)) {
-			if (existingDatesSet.has(date)) {
-				// Arrangement already exists for this date, skip insertion
-				skippedDates.push(date);
-				continue;
-			}
-
-			// Prepare the new arrangement data
-			insertArrangements.push({
-				staff_id,
-				date,
-				recurrence_pattern: 'one-time',
-				type, // Use the type provided in datesDict
-				status: 'pending', // Set initial status to 'pending' or as required
-				location: 'home', // Set the location as per your requirements
-				reason,
-			});
-		}
-
-		// Insert the new arrangements if any
-		if (insertArrangements.length > 0) {
-			const { data: insertedData, error: insertError } = await supabase
-				.from('arrangement')
-				.insert(insertArrangements)
-				.select(); // Include select() to get the inserted data
-
-			if (insertError) {
-				console.error('Error inserting new arrangements:', insertError);
-				return NextResponse.json(
-					{ error: 'Failed to insert new arrangements' },
-					{ status: 500 }
-				);
-			}
 		}
 
 		// Retrieve the user's own arrangements after insertion using viewOwnHandler
@@ -148,11 +110,6 @@ export const POST = checkViewOwnPermission(async (req) => {
 		const updatedArrangementsResponse = await viewOwnHandler(getRequest);
 		const updatedArrangementsResult =
 			await updatedArrangementsResponse.json();
-
-		console.log(
-			'Updated output of viewOwnHandler:',
-			updatedArrangementsResult
-		);
 
 		if (!updatedArrangementsResponse.ok) {
 			console.error(
@@ -166,16 +123,8 @@ export const POST = checkViewOwnPermission(async (req) => {
 		}
 
 		return NextResponse.json({
-			message:
-				insertArrangements.length > 0
-					? 'Application successful'
-					: 'No new arrangements to insert',
-			skippedDates,
+			message: 'Application successful',
 			arrangements: updatedArrangementsResult.data || [],
-			debugData: {
-				existingArrangements: existingArrangementsResult.data,
-				updatedArrangements: updatedArrangementsResult.data,
-			},
 		});
 	} catch (error) {
 		console.error('Unhandled error in POST /api/schedule/apply:', error);

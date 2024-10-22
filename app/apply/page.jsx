@@ -16,58 +16,89 @@ export default function OwnArrangements() {
 
 	const fetchArrangements = async () => {
 		setLoading(true);
-		const { data, error } = await supabase.auth.getSession();
+		try {
+			const { data, error } = await supabase.auth.getSession();
 
-		if (error) {
-			setError('Failed to get session');
-			setLoading(false);
-			return;
-		}
+			if (error) throw new Error('Failed to get session');
+			if (!data.session) throw new Error('No active session');
 
-		if (!data.session) {
-			setError('No active session');
-			setLoading(false);
-			return;
-		}
+			const token = data.session.access_token;
+			const user = data.session.user;
+			const employee_id = user.user_metadata.staff_id;
 
-		const token = data.session.access_token;
-		const user = data.session.user;
-		const employee_id = user.user_metadata.staff_id;
+			const response = await fetch(
+				`/api/schedule/apply?employee_id=${employee_id}`,
+				{
+					headers: {
+						Authorization: `Bearer ${token}`,
+					},
+				}
+			);
 
-		const response = await fetch(
-			`/api/schedule/apply?employee_id=${employee_id}`,
-			{
-				headers: {
-					Authorization: `Bearer ${token}`,
-				},
+			if (!response.ok) {
+				const errorResult = await response.json();
+				throw new Error(
+					errorResult.error || 'Failed to fetch arrangements'
+				);
 			}
-		);
 
-		if (!response.ok) {
-			const errorResult = await response.json();
-			setError(errorResult.error || 'Failed to fetch arrangements');
+			const result = await response.json();
+			const processedArrangements = processArrangements(result.data);
+			setArrangements(processedArrangements);
+		} catch (error) {
+			console.error('Error in fetchArrangements:', error);
+			setError(error.message);
+		} finally {
 			setLoading(false);
-			return;
 		}
-
-		const result = await response.json();
-		setArrangements(result.data);
-		setLoading(false);
 	};
 
 	useEffect(() => {
 		fetchArrangements();
 	}, []);
 
-	const handleNewArrangement = (newArrangement) => {
-		setArrangements((prevArrangements) => [
-			...prevArrangements,
-			newArrangement,
-		]);
+	const processArrangements = (arrangementsData) => {
+		return arrangementsData.flatMap((arrangement) => {
+			if (arrangement.recurrence_pattern === 'one-time') {
+				return [arrangement];
+			} else {
+				return generateRecurringDates(arrangement);
+			}
+		});
+	};
+
+	const generateRecurringDates = (arrangement) => {
+		const { start_date, end_date, recurrence_pattern, type } = arrangement;
+		const dates = [];
+		let currentDate = new Date(start_date);
+		const endDate = new Date(end_date);
+
+		while (currentDate <= endDate) {
+			dates.push({
+				...arrangement,
+				date: currentDate.toISOString().split('T')[0],
+				type,
+			});
+
+			switch (recurrence_pattern) {
+				case 'weekly':
+					currentDate.setDate(currentDate.getDate() + 7);
+					break;
+				case 'bi-weekly':
+					currentDate.setDate(currentDate.getDate() + 14);
+					break;
+				case 'monthly':
+					currentDate.setMonth(currentDate.getMonth() + 1);
+					break;
+			}
+		}
+
+		return dates;
 	};
 
 	const handleArrangementsUpdate = (newArrangements) => {
-		setArrangements(newArrangements);
+		const processedArrangements = processArrangements(newArrangements);
+		setArrangements(processedArrangements);
 	};
 
 	if (loading) return <div className="text-center mt-8">Loading...</div>;
@@ -87,11 +118,12 @@ export default function OwnArrangements() {
 					{arrangementType === 'adhoc' ? (
 						<AdHocArrangementForm
 							arrangements={arrangements}
-							onNewArrangement={handleNewArrangement}
 							onArrangementsUpdate={handleArrangementsUpdate}
 						/>
 					) : (
-						<RecurringArrangementForm />
+						<RecurringArrangementForm
+							onArrangementsUpdate={handleArrangementsUpdate}
+						/>
 					)}
 				</div>
 			</div>

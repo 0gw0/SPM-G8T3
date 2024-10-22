@@ -72,6 +72,11 @@ const AdHocArrangementForm = ({
 			const requestBody = new FormData();
 			requestBody.append('dates', JSON.stringify(datesDict));
 			requestBody.append('reason', reason);
+			requestBody.append('arrangementType', 'adhoc'); // Add this line
+
+			if (attachment) {
+				requestBody.append('attachment', attachment);
+			}
 
 			const response = await fetch(
 				`/api/schedule/apply?employee_id=${employee_id}`,
@@ -91,9 +96,7 @@ const AdHocArrangementForm = ({
 
 			const result = await response.json();
 
-			if (attachment) {
-				await sendEmailNotification(employee_id, attachment);
-			}
+			await sendEmailNotification(employee_id, attachment);
 
 			// Update the local state with the new arrangements
 			if (result.arrangements && result.arrangements.length > 0) {
@@ -116,22 +119,27 @@ const AdHocArrangementForm = ({
 
 	const sendEmailNotification = async (employee_id, pdf_attachment) => {
 		try {
-			const base64Attachment = await new Promise((resolve, reject) => {
-				const reader = new FileReader();
-				reader.readAsDataURL(pdf_attachment);
-				reader.onload = () => resolve(reader.result.split(',')[1]);
-				reader.onerror = (error) => reject(error);
-			});
+			let emailData = { employee_id };
+
+			if (pdf_attachment) {
+				const base64Attachment = await new Promise(
+					(resolve, reject) => {
+						const reader = new FileReader();
+						reader.readAsDataURL(pdf_attachment);
+						reader.onload = () =>
+							resolve(reader.result.split(',')[1]);
+						reader.onerror = (error) => reject(error);
+					}
+				);
+				emailData.pdf_attachment = base64Attachment;
+			}
 
 			const response = await fetch('/api/send-email', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 				},
-				body: JSON.stringify({
-					employee_id,
-					pdf_attachment: base64Attachment,
-				}),
+				body: JSON.stringify(emailData),
 			});
 
 			if (!response.ok) {
