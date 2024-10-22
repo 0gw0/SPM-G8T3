@@ -1,141 +1,183 @@
-import React, { useState, useEffect, useRef } from "react";
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin from "@fullcalendar/interaction";
+import React, { useRef } from 'react';
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import interactionPlugin from '@fullcalendar/interaction';
 
-const ApplyCalendar = ({ arrangements, onDatesChange }) => {
-    const getDateString = (date) => {
-        const year = date.getFullYear();
-        const month = ("0" + (date.getMonth() + 1)).slice(-2);
-        const day = ("0" + date.getDate()).slice(-2);
-        return `${year}-${month}-${day}`;
-    };
+const ApplyCalendar = ({ arrangements, selectedDates, onDatesChange }) => {
+	const getDateString = (date) => {
+		const year = date.getFullYear();
+		const month = ('0' + (date.getMonth() + 1)).slice(-2);
+		const day = ('0' + date.getDate()).slice(-2);
+		return `${year}-${month}-${day}`;
+	};
 
-    const today = new Date();
-    const todayStr = getDateString(today);
-    const maxDate = new Date(
-        today.getFullYear() + 1,
-        today.getMonth(),
-        today.getDate()
-    );
-    const maxDateStr = getDateString(maxDate);
+	const today = new Date();
+	const todayStr = getDateString(today);
+	const maxDate = new Date(
+		today.getFullYear() + 1,
+		today.getMonth(),
+		today.getDate()
+	);
+	const maxDateStr = getDateString(maxDate);
 
-    const [selectedDates, setSelectedDates] = useState([]);
-    const existingDatesSet = new Set(arrangements.map((arr) => arr.date));
+	const existingDatesSet = new Set(arrangements.map((arr) => arr.date));
 
-    const clickTimeout = useRef(null);
+	const clickTimeout = useRef(null);
+	const isSelecting = useRef(false);
 
-    const selectedDateEvents = selectedDates.map((date) => ({
-        title: "Selected",
-        start: date,
-        allDay: true,
-        backgroundColor: "blue",
-        textColor: "white",
-    }));
+	const selectedDateEvents = Object.entries(selectedDates).map(
+		([date, type]) => ({
+			title: type,
+			start: date,
+			allDay: true,
+			classNames: ['bg-blue-500', 'text-white'],
+		})
+	);
 
-    const arrangementEvents = arrangements.map((arrangement) => {
-        const backgroundColor =
-            arrangement.status === "approved" ? "green" : "yellow";
-        const textColor = arrangement.status === "pending" ? "black" : "white";
+	const arrangementEvents = arrangements.map((arrangement) => {
+		let classNames;
 
-        return {
-            title: arrangement.type,
-            start: arrangement.date,
-            allDay: true,
-            backgroundColor,
-            textColor,
-            extendedProps: { status: arrangement.status },
-        };
-    });
+		switch (arrangement.status) {
+			case 'approved':
+				classNames = ['bg-green-500', 'text-white'];
+				break;
+			case 'rejected':
+				classNames = ['bg-red-500', 'text-white'];
+				break;
+			case 'pending':
+			default:
+				classNames = ['bg-yellow-400', 'text-black'];
+				break;
+		}
 
-    const dayCellClassNames = (arg) => {
-        const cellDateStr = getDateString(arg.date);
-        let classes = [];
+		return {
+			title: arrangement.type,
+			start: arrangement.date,
+			allDay: true,
+			classNames,
+			extendedProps: { status: arrangement.status },
+		};
+	});
 
-        if (cellDateStr < todayStr || cellDateStr > maxDateStr) {
-            classes.push("disabled-date");
-        }
-        if (existingDatesSet.has(cellDateStr)) {
-            classes.push("existing-arrangement");
-        }
-        return classes;
-    };
+	const dayCellClassNames = (arg) => {
+		const cellDateStr = getDateString(arg.date);
+		let classes = [];
 
-    const handleDateSelect = (selectInfo) => {
-        clearTimeout(clickTimeout.current);
+		if (cellDateStr < todayStr || cellDateStr > maxDateStr) {
+			classes.push('bg-gray-200 cursor-not-allowed');
+		}
+		if (existingDatesSet.has(cellDateStr)) {
+			classes.push('border-2 border-blue-500');
+		}
+		return classes;
+	};
 
-        const { start, end } = selectInfo;
-        const endDate = new Date(end.getTime() - 1);
+	const handleDateSelect = (selectInfo) => {
+		isSelecting.current = true;
+		clearTimeout(clickTimeout.current);
 
-        let dates = [];
-        let currentDate = new Date(start);
+		const { start, end } = selectInfo;
+		const endDate = new Date(end.getTime() - 1);
 
-        while (currentDate <= endDate) {
-            const dateStr = getDateString(currentDate);
+		let newSelectedDates = { ...selectedDates };
+		let currentDate = new Date(start);
 
-            if (
-                existingDatesSet.has(dateStr) ||
-                dateStr < todayStr ||
-                dateStr > maxDateStr
-            ) {
-                alert(`Invalid selection: ${dateStr}`);
-                return;
-            }
-            dates.push(dateStr);
-            currentDate.setDate(currentDate.getDate() + 1);
-        }
+		while (currentDate <= endDate) {
+			const dateStr = getDateString(currentDate);
 
-        setSelectedDates(dates); // Clear previous and set new range
-        selectInfo.view.calendar.unselect();
-    };
+			if (
+				existingDatesSet.has(dateStr) ||
+				dateStr < todayStr ||
+				dateStr > maxDateStr
+			) {
+				alert(`Invalid selection: ${dateStr}`);
+				return;
+			}
+			if (!newSelectedDates[dateStr]) {
+				newSelectedDates[dateStr] = 'full-day';
+			}
+			currentDate.setDate(currentDate.getDate() + 1);
+		}
 
-    const handleDateClick = (dateClickInfo) => {
-        const dateStr = getDateString(dateClickInfo.date);
+		onDatesChange(newSelectedDates);
+		selectInfo.view.calendar.unselect();
 
-        if (
-            existingDatesSet.has(dateStr) ||
-            dateStr < todayStr ||
-            dateStr > maxDateStr
-        ) {
-            alert(`Cannot select date ${dateStr}.`);
-            return;
-        }
+		setTimeout(() => {
+			isSelecting.current = false;
+		}, 100);
+	};
 
-        clickTimeout.current = setTimeout(() => {
-            setSelectedDates([dateStr]); // Clear previous and set new single date
-        }, 100);
-    };
+	const handleDateClick = (dateClickInfo) => {
+		if (isSelecting.current) return;
 
-    useEffect(() => {
-        if (onDatesChange) {
-            const datesDict = {};
-            selectedDates.forEach((date) => {
-                datesDict[date] = "Full-day-WFH";
-            });
-            onDatesChange(datesDict);
-        }
-    }, [selectedDates, onDatesChange]);
+		const dateStr = getDateString(dateClickInfo.date);
 
-    return (
-        <FullCalendar
-            plugins={[dayGridPlugin, interactionPlugin]}
-            initialView="dayGridMonth"
-            headerToolbar={{
-                left: "prev,next today",
-                center: "title",
-                right: "dayGridMonth",
-            }}
-            height="auto"
-            validRange={{ start: todayStr, end: maxDateStr }}
-            events={[...arrangementEvents, ...selectedDateEvents]}
-            selectable={true}
-            selectMirror={true}
-            dayCellClassNames={dayCellClassNames}
-            select={handleDateSelect}
-            dateClick={handleDateClick}
-            unselectAuto={false}
-        />
-    );
+		if (
+			existingDatesSet.has(dateStr) ||
+			dateStr < todayStr ||
+			dateStr > maxDateStr
+		) {
+			alert(`Cannot select date ${dateStr}.`);
+			return;
+		}
+
+		clickTimeout.current = setTimeout(() => {
+			const newSelectedDates = { ...selectedDates };
+			if (newSelectedDates[dateStr]) {
+				delete newSelectedDates[dateStr];
+			} else {
+				newSelectedDates[dateStr] = 'full-day';
+			}
+			onDatesChange(newSelectedDates);
+		}, 100);
+	};
+
+	const Legend = () => (
+		<div className="flex justify-center items-center space-x-4 mb-4">
+			<div className="flex items-center">
+				<span className="inline-block w-5 h-5 bg-green-500 mr-2"></span>
+				<span>Approved</span>
+			</div>
+			<div className="flex items-center">
+				<span className="inline-block w-5 h-5 bg-red-500 mr-2"></span>
+				<span>Rejected</span>
+			</div>
+			<div className="flex items-center">
+				<span className="inline-block w-5 h-5 bg-yellow-400 mr-2"></span>
+				<span>Pending</span>
+			</div>
+			<div className="flex items-center">
+				<span className="inline-block w-5 h-5 bg-blue-500 mr-2"></span>
+				<span>Selected</span>
+			</div>
+		</div>
+	);
+
+	return (
+		<div className="max-w-4xl mx-auto p-4">
+			<div className="border border-gray-200 shadow-lg rounded-lg overflow-hidden">
+				<FullCalendar
+					plugins={[dayGridPlugin, interactionPlugin]}
+					initialView="dayGridMonth"
+					headerToolbar={{
+						left: 'prev,next today',
+						center: 'title',
+						right: 'dayGridMonth',
+					}}
+					height="auto"
+					validRange={{ start: todayStr, end: maxDateStr }}
+					events={[...arrangementEvents, ...selectedDateEvents]}
+					selectable={true}
+					selectMirror={true}
+					dayCellClassNames={dayCellClassNames}
+					select={handleDateSelect}
+					dateClick={handleDateClick}
+					unselectAuto={false}
+				/>
+			</div>
+			<Legend />
+		</div>
+	);
 };
 
 export default ApplyCalendar;

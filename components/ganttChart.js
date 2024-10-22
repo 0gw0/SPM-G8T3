@@ -160,19 +160,51 @@ const GanttChart = ({ arrangements, isLoading }) => {
     console.log("Transformed Employee Data:", transformedData);
 
     return (
-        <div style={{ position: "relative", width: "auto", height: "600px" }}>
-            <Scheduler
-            isLoading={isLoading}
-            data={transformedData}
-            config={{
-                filterButtonState: -1,
-                zoom: 1,
-                lang: "en",
-                maxRecordsPerPage: 20,
-                showTooltip: false,
-                showThemeToggle: true
-            }}
-        />
+        <div>
+            <div
+                style={{ position: "relative", width: "auto", height: "600px" }}
+            >
+                <Scheduler
+                    isLoading={isLoading}
+                    data={transformedData}
+                    config={{
+                        filterButtonState: -1,
+                        zoom: 1,
+                        lang: "en",
+                        maxRecordsPerPage: 20,
+                        showTooltip: false,
+                        showThemeToggle: true,
+                    }}
+                />
+            </div>
+            <div className="flex justify-center items-center mt-4">
+                {/* Status Legend */}
+                <div className="flex space-x-4 items-center font-sans">
+                    {/* Full Day WFH */}
+                    <div className="flex items-center space-x-2">
+                        <div
+                            className="w-5 h-5"
+                            style={{ backgroundColor: "#b5cbcc" }}
+                        ></div>
+                        <span>Full Day WFH</span>
+                    </div>
+
+                    {/* AM WFH */}
+                    <div className="flex items-center space-x-2">
+                        <div
+                            className="w-5 h-5"
+                            style={{ backgroundColor: "#cddeef" }}
+                        ></div>
+                        <span>AM WFH</span>
+                    </div>
+
+                    {/* PM WFH */}
+                    <div className="flex items-center space-x-2">
+                        <div className="w-5 h-5 bg-yellow-500"></div>
+                        <span>PM WFH</span>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
