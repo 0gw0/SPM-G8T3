@@ -37,7 +37,7 @@ const ArrangementTable = ({ arrangements }) => {
 						</td>
 						<td className="py-2 px-4 border-b">{arr.department}</td>
 						<td className="py-2 px-4 border-b">
-							{new Date(arr.start_date).toLocaleDateString()}
+							{new Date(arr.date).toLocaleDateString()}
 						</td>
 						<td className="py-2 px-4 border-b">{arr.type}</td>
 						<td className="py-2 px-4 border-b">{arr.reason}</td>

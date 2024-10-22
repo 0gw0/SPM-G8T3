@@ -25,12 +25,28 @@ const ApplyCalendar = ({ arrangements, selectedDates, onDatesChange }) => {
 	const clickTimeout = useRef(null);
 	const isSelecting = useRef(false);
 
+	// Helper function to get event order based on type
+	const getEventOrder = (type) => {
+		switch (type) {
+			case 'morning':
+				return 1;
+			case 'afternoon':
+				return 2;
+			case 'full-day':
+				return 0;
+			default:
+				return 3;
+		}
+	};
+
 	const selectedDateEvents = Object.entries(selectedDates).map(
 		([date, type]) => ({
 			title: type,
 			start: date,
 			allDay: true,
 			classNames: ['bg-blue-500', 'text-white'],
+			order: getEventOrder(type),
+			display: 'block',
 		})
 	);
 
@@ -56,6 +72,8 @@ const ApplyCalendar = ({ arrangements, selectedDates, onDatesChange }) => {
 			allDay: true,
 			classNames,
 			extendedProps: { status: arrangement.status },
+			order: getEventOrder(arrangement.type),
+			display: 'block',
 		};
 	});
 
@@ -173,6 +191,9 @@ const ApplyCalendar = ({ arrangements, selectedDates, onDatesChange }) => {
 					select={handleDateSelect}
 					dateClick={handleDateClick}
 					unselectAuto={false}
+					eventOrder="order"
+					displayEventEnd={false}
+					eventDisplay="block"
 				/>
 			</div>
 			<Legend />
