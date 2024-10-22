@@ -52,6 +52,10 @@ export async function POST(request) {
 			);
 		}
 
+		let attachmentInfo = pdf_attachment
+			? '<p>Please review the attached PDF for details.</p>'
+			: '<p>No attachment was provided with this request.</p>';
+
 		const { data, error } = await resend.emails.send({
 			from: 'AIO <HR@resend.dev>',
 			to: [recipientEmail],
@@ -59,7 +63,8 @@ export async function POST(request) {
 			html: `
                 <p>Dear ${manager.staff_fname} ${manager.staff_lname},</p>
                 <p>A new work arrangement request has been submitted by ${employee.staff_fname} ${employee.staff_lname} (Employee ID: ${employee_id}).</p>
-                <p>Please review the attached PDF for details.</p>
+                ${attachmentInfo}
+                <p>Please review and respond to this request at your earliest convenience.</p>
                 <p>Best regards,<br>HR Department</p>
                 <p>This message was meant for</p>
                 <hr>

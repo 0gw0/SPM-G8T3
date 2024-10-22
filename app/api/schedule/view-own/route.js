@@ -3,7 +3,6 @@ import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
 export const handler = async (req) => {
-    console.log("view-own handler executed");
     const supabase = createClient();
 
     // Get the token from the Authorization header
