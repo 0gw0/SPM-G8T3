@@ -1,168 +1,134 @@
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import timeGridPlugin from "@fullcalendar/timegrid";
-import interactionPlugin from "@fullcalendar/interaction";
-import listPlugin from "@fullcalendar/list";
-import React from "react";
+import React, { useRef } from 'react';
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import interactionPlugin from '@fullcalendar/interaction';
 
-// Function to transform the employee's arrangements into calendar events
-export function transformArrangementsToEvents(arrangements) {
-    const events = [];
+const Calendar = ({ arrangements, onDatesChange }) => {
+	const getDateString = (date) => {
+		const year = date.getFullYear();
+		const month = ('0' + (date.getMonth() + 1)).slice(-2);
+		const day = ('0' + date.getDate()).slice(-2);
+		return `${year}-${month}-${day}`;
+	};
 
-    arrangements.forEach((arrangement) => {
-        if (
-            arrangement.status &&
-            arrangement.start_date &&
-            arrangement.end_date
-        ) {
-            let startDate, endDate, bgColor, textColor;
+	const today = new Date();
+	const todayStr = getDateString(today);
+	const maxDate = new Date(
+		today.getFullYear() + 1,
+		today.getMonth(),
+		today.getDate()
+	);
+	const maxDateStr = getDateString(maxDate);
 
-            // Set dates based on arrangement type
-            if (arrangement.type === "full-day") {
-                startDate = `${arrangement.start_date}T09:00:00`;
-                endDate = `${arrangement.end_date}T18:00:00`;
-            } else if (arrangement.type === "morning") {
-                startDate = `${arrangement.start_date}T09:00:00`;
-                endDate = `${arrangement.end_date}T13:00:00`;
-            } else if (arrangement.type === "afternoon") {
-                startDate = `${arrangement.start_date}T14:00:00`;
-                endDate = `${arrangement.end_date}T18:00:00`;
-            } else {
-                startDate = `${arrangement.start_date}T08:00:00`;
-                endDate = `${arrangement.end_date}T18:00:00`;
-            }
+	const existingDatesSet = new Set(arrangements.map((arr) => arr.date));
 
-            // Set background color based on status and location
-            if (arrangement.status === "approved") {
-                bgColor = "green"; // Green for approved
-            } else if (arrangement.status === "pending") {
-                bgColor = "yellow"; // Yellow for pending
-                textColor = "black"; // Black text for better contrast
-            } else  {
-                bgColor = "blue"; // Blue for office work
-            } 
+	const clickTimeout = useRef(null);
+	const isSelecting = useRef(false);
 
-            // Add the main event
-            events.push({
-                id: arrangement.arrangement_id.toString(),
-                title: arrangement.location === "home" ? "WFH" : "Office",
-                start: startDate,
-                end: endDate,
-                backgroundColor: bgColor,
-                textColor: textColor || "black", // Apply text color if specified
-                allDay: false,
-                extendedProps: {
-                    status: arrangement.status,
-                    description: arrangement.reason || "No reason provided",
-                },
-            });
 
-            // Handle recurring events if applicable
-            if (arrangement.recurrence_pattern) {
-                const recurringEvents = generateRecurringEvents(
-                    arrangement,
-                    startDate,
-                    endDate,
-                    bgColor
-                );
-                events.push(...recurringEvents);
-            }
-        }
-    });
 
-    return events;
-}
+	const arrangementEvents = arrangements.map((arrangement) => {
+		let classNames;
 
-// Function to generate recurring events based on the recurrence pattern
-function generateRecurringEvents(arrangement, startDate, endDate, bgColor) {
-    const recurringEvents = [];
-    const recurrenceStart = new Date(startDate);
-    const recurrenceEnd = new Date(endDate);
-    const threeMonthsLater = new Date(recurrenceStart);
-    threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3); // Recurrence window
+		switch (arrangement.status) {
+			case 'approved':
+				classNames = ['bg-green-500', 'text-white'];
+				break;
+			case 'rejected':
+				classNames = ['bg-red-500', 'text-white'];
+				break;
+			case 'pending':
+			default:
+				classNames = ['bg-yellow-400', 'text-black'];
+				break;
+		}
 
-    let intervalDays;
-    switch (arrangement.recurrence_pattern) {
-        case "weekly":
-            intervalDays = 7;
-            break;
-        case "bi-weekly":
-            intervalDays = 14;
-            break;
-        case "monthly":
-            intervalDays = 30; // Approximate monthly recurrence
-            break;
-        default:
-            intervalDays = null;
-    }
+		return {
+			title: arrangement.type,
+			start: arrangement.date,
+			allDay: true,
+			classNames,
+			extendedProps: { status: arrangement.status },
+		};
+	});
 
-    let recurrenceCount = 0;
-    while (recurrenceStart < threeMonthsLater) {
-        if (arrangement.recurrence_pattern === "monthly") {
-            recurrenceStart.setMonth(recurrenceStart.getMonth() + 1);
-            recurrenceEnd.setMonth(recurrenceEnd.getMonth() + 1);
-        } else if (intervalDays) {
-            recurrenceStart.setDate(recurrenceStart.getDate() + intervalDays);
-            recurrenceEnd.setDate(recurrenceEnd.getDate() + intervalDays);
-        }
+	const dayCellClassNames = (arg) => {
+		const cellDateStr = getDateString(arg.date);
+		let classes = [];
 
-        if (recurrenceStart < threeMonthsLater) {
-            recurringEvents.push({
-                id: `${arrangement.arrangement_id}-${recurrenceCount}`, // Unique ID
-                title: arrangement.location === "home" ? "WFH" : "Office",
-                start: new Date(recurrenceStart).toISOString(),
-                end: new Date(recurrenceEnd).toISOString(),
-                backgroundColor: bgColor,
-                allDay: false,
-                extendedProps: {
-                    status: arrangement.status,
-                    description: arrangement.reason || "No reason provided",
-                },
-            });
-            recurrenceCount++;
-        }
-    }
+		if (cellDateStr < todayStr || cellDateStr > maxDateStr) {
+			classes.push('bg-gray-200 cursor-not-allowed');
+		}
+		if (existingDatesSet.has(cellDateStr)) {
+			classes.push('border-2 border-blue-500');
+		}
+		return classes;
+	};
 
-    return recurringEvents;
-}
 
-const Calendar = ({ arrangements, isLoading }) => {
-    const events = transformArrangementsToEvents(arrangements);
 
-    const renderEventContent = (eventInfo) => {
-        const { title, extendedProps } = eventInfo.event;
-        const status = extendedProps?.status ? `(${extendedProps.status})` : "";
+	const handleDateClick = (dateClickInfo) => {
+		if (isSelecting.current) return;
 
-        return (
-            <div>
-                <b>{title}</b> {status}
-            </div>
-        );
-    };
+		const dateStr = getDateString(dateClickInfo.date);
 
-    return (
-        <div style={{ position: "relative", width: "auto", height: "600px" }}>
-            <FullCalendar
-                plugins={[
-                    dayGridPlugin,
-                    timeGridPlugin,
-                    interactionPlugin,
-                    listPlugin,
-                ]}
-                initialView="dayGridMonth"
-                headerToolbar={{
-                    left: "prev,next today",
-                    center: "title",
-                    right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
-                }}
-                height="auto"
-                aspectRatio={1.35}
-                events={events}
-                eventContent={renderEventContent}
-                loading={isLoading}
-            />
-        </div>
-    );
+		if (
+			existingDatesSet.has(dateStr) ||
+			dateStr < todayStr ||
+			dateStr > maxDateStr
+		) {
+			alert(`Cannot select date ${dateStr}.`);
+			return;
+		}
+
+
+	};
+
+	const Legend = () => (
+		<div className="flex justify-center items-center space-x-4 mb-4">
+			<div className="flex items-center">
+				<span className="inline-block w-5 h-5 bg-green-500 mr-2"></span>
+				<span>Approved</span>
+			</div>
+			<div className="flex items-center">
+				<span className="inline-block w-5 h-5 bg-red-500 mr-2"></span>
+				<span>Rejected</span>
+			</div>
+			<div className="flex items-center">
+				<span className="inline-block w-5 h-5 bg-yellow-400 mr-2"></span>
+				<span>Pending</span>
+			</div>
+			<div className="flex items-center">
+				<span className="inline-block w-5 h-5 bg-blue-500 mr-2"></span>
+				<span>Selected</span>
+			</div>
+		</div>
+	);
+
+	return (
+		<div className="max-w-4xl mx-auto p-4">
+			<div className="border border-gray-200 shadow-lg rounded-lg overflow-hidden">
+				<FullCalendar
+					plugins={[dayGridPlugin, interactionPlugin]}
+					initialView="dayGridMonth"
+					headerToolbar={{
+						left: 'prev,next today',
+						center: 'title',
+						right: 'dayGridMonth',
+					}}
+					height="auto"
+					validRange={{ start: todayStr, end: maxDateStr }}
+					events={[...arrangementEvents]}
+					selectable={true}
+					selectMirror={true}
+					dayCellClassNames={dayCellClassNames}
+					dateClick={handleDateClick}
+					unselectAuto={false}
+				/>
+			</div>
+			<Legend />
+		</div>
+	);
 };
 
 export default Calendar;

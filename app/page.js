@@ -77,11 +77,7 @@ export default function Page() {
         <div className="p-4">
             <h1 className="text-3xl font-bold mb-4">Welcome {displayName}!</h1>
             <h1 className="text-xl font-bold mb-4">Your Arrangements</h1>
-            {!arrangements || arrangements.length === 0 ? (
-                <p className="text-gray-600">No arrangements found.</p>
-            ) : (
-                <Calendar arrangements={arrangements} />
-            )}
+            <Calendar arrangements={arrangements || []} />
         </div>
     );
 }
