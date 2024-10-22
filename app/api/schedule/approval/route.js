@@ -22,17 +22,18 @@ const handler = async (req, user, employee) => {
     console.log("Employee ID:", staff_id);
 
     // Fetch all employees under the same reporting manager
-    const { data: employees, error: empError } = 
-        await supabase
-            .from("employee")
-            .select(`
+    const { data: employees, error: empError } = await supabase
+        .from("employee")
+        .select(
+            `
                 staff_id,
                 staff_fname,
                 staff_lname,
                 dept,
                 position
-            `)
-            .eq("reporting_manager", staff_id);
+            `
+        )
+        .eq("reporting_manager", staff_id);
 
     if (empError) {
         console.error("Error fetching employees:", empError);
@@ -117,11 +118,7 @@ const handler = async (req, user, employee) => {
     });
 };
 
-
-
 export const GET = checkApprovalPermission(handler);
-
-
 
 /*
   Example output:
