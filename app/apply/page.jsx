@@ -6,7 +6,7 @@ import RecurringArrangementForm from '@/components/RecurringArrangementForm';
 import ArrangementTypeSelector from '@/components/ArrangementTypeSelector';
 import ArrangementTable from '@/components/ArrangementTable';
 import AdHocArrangementForm from '@/components/AdHocArrangementForm';
-import { processArrangements } from '@/utils/dates';
+import { processArrangements, checkRecurringOverlap } from '@/utils/dates';
 
 export default function OwnArrangements() {
 	const [arrangements, setArrangements] = useState([]);
@@ -67,6 +67,15 @@ export default function OwnArrangements() {
 		setArrangements(processedArrangements);
 	};
 
+	const checkForOverlaps = (newArrangement) => {
+		return checkRecurringOverlap(newArrangement, rawArrangements);
+	};
+
+	// New function to handle successful form submission
+	const handleFormSuccess = () => {
+		setArrangementType('adhoc');
+	};
+
 	if (loading) return <div className="text-center mt-8">Loading...</div>;
 	if (error)
 		return <div className="text-center mt-8 text-red-500">{error}</div>;
@@ -90,6 +99,8 @@ export default function OwnArrangements() {
 						<RecurringArrangementForm
 							arrangements={arrangements}
 							onArrangementsUpdate={handleArrangementsUpdate}
+							checkForOverlaps={checkForOverlaps}
+							onSuccess={handleFormSuccess}
 						/>
 					)}
 				</div>
