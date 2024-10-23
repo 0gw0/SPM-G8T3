@@ -11,17 +11,62 @@ const AdHocArrangementForm = ({
 	const [reason, setReason] = useState('');
 	const [attachment, setAttachment] = useState(null);
 	const [isApplying, setIsApplying] = useState(false);
+	const [error, setError] = useState(null);
 	const supabase = createClient();
 
+	const validateTimeRestrictions = (dates) => {
+		const now = new Date();
+		const currentHour = now.getHours();
+		const today = now.toDateString();
+
+		for (const [dateStr, type] of Object.entries(dates)) {
+			const date = new Date(dateStr);
+			const isToday = date.toDateString() === today;
+
+			if (isToday) {
+				// After 9am restriction for morning and full-day
+				if (
+					currentHour >= 9 &&
+					(type === 'morning' || type === 'full-day')
+				) {
+					return 'Cannot apply for morning or full-day arrangements after 9:00 AM on the same day';
+				}
+
+				// After 2pm restriction for afternoon
+				if (currentHour >= 14 && type === 'afternoon') {
+					return 'Cannot apply for afternoon arrangements after 2:00 PM on the same day';
+				}
+			}
+
+			// Check if date is in past
+			if (date < new Date(now.setHours(0, 0, 0, 0))) {
+				return 'Cannot apply for dates in the past';
+			}
+		}
+
+		return null;
+	};
+
 	const handleDatesChange = (newDatesDict) => {
+		setError(null);
 		setDatesDict(newDatesDict);
 	};
 
 	const handleTypeChange = (date, type) => {
-		setDatesDict((prev) => ({
-			...prev,
+		const newDatesDict = {
+			...datesDict,
 			[date]: type,
-		}));
+		};
+
+		// Validate the new type selection
+		const timeError = validateTimeRestrictions({ [date]: type });
+		if (timeError) {
+			setError(timeError);
+			return;
+		}
+
+		setError(null);
+		setDatesDict(newDatesDict);
 	};
 
 	const handleDateRemove = (dateToRemove) => {
@@ -30,6 +75,7 @@ const AdHocArrangementForm = ({
 			delete newDatesDict[dateToRemove];
 			return newDatesDict;
 		});
+		setError(null);
 	};
 
 	const handleReasonChange = (e) => {
@@ -48,16 +94,24 @@ const AdHocArrangementForm = ({
 
 	const handleApply = async () => {
 		if (Object.keys(datesDict).length === 0) {
-			alert('Please select at least one date before applying.');
+			setError('Please select at least one date before applying.');
 			return;
 		}
 
 		if (!reason) {
-			alert('Please provide a reason for the arrangement.');
+			setError('Please provide a reason for the arrangement.');
+			return;
+		}
+
+		// Validate time restrictions before submitting
+		const timeError = validateTimeRestrictions(datesDict);
+		if (timeError) {
+			setError(timeError);
 			return;
 		}
 
 		setIsApplying(true);
+		setError(null);
 
 		try {
 			const { data, error } = await supabase.auth.getSession();
@@ -72,7 +126,7 @@ const AdHocArrangementForm = ({
 			const requestBody = new FormData();
 			requestBody.append('dates', JSON.stringify(datesDict));
 			requestBody.append('reason', reason);
-			requestBody.append('arrangementType', 'adhoc'); // Add this line
+			requestBody.append('arrangementType', 'adhoc');
 
 			if (attachment) {
 				requestBody.append('attachment', attachment);
@@ -98,7 +152,6 @@ const AdHocArrangementForm = ({
 
 			await sendEmailNotification(employee_id, attachment);
 
-			// Update the local state with the new arrangements
 			if (result.arrangements && result.arrangements.length > 0) {
 				onArrangementsUpdate(result.arrangements);
 			}
@@ -109,9 +162,12 @@ const AdHocArrangementForm = ({
 			setDatesDict({});
 			setReason('');
 			setAttachment(null);
+			setError(null);
 		} catch (error) {
 			console.error('Error in handleApply:', error);
-			alert(error.message || 'An error occurred while applying for WFH');
+			setError(
+				error.message || 'An error occurred while applying for WFH'
+			);
 		} finally {
 			setIsApplying(false);
 		}
@@ -168,6 +224,12 @@ const AdHocArrangementForm = ({
 				selectedDates={datesDict}
 				onDatesChange={handleDatesChange}
 			/>
+
+			{error && (
+				<div className="mt-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+					{error}
+				</div>
+			)}
 
 			<div className="mt-4">
 				<h2 className="text-xl font-bold mb-2">Selected Dates:</h2>

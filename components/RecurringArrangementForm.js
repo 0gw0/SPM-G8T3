@@ -27,12 +27,36 @@ export default function RecurringArrangementForm({
 	};
 
 	const validateDates = () => {
+		const now = new Date();
+		const currentHour = now.getHours();
+		const startDate = new Date(formData.start_date);
+
 		if (isDateInPast(formData.start_date)) {
 			return 'Start date cannot be in the past';
 		}
+
 		if (formData.end_date && formData.start_date > formData.end_date) {
 			return 'End date must be after start date';
 		}
+
+		// Check if trying to apply for today
+		const isToday = startDate.toDateString() === now.toDateString();
+
+		if (isToday) {
+			// After 9am restriction for morning and full-day
+			if (
+				currentHour >= 9 &&
+				(formData.type === 'morning' || formData.type === 'full-day')
+			) {
+				return 'Cannot apply for morning or full-day arrangements after 9:00 AM on the same day';
+			}
+
+			// After 2pm restriction for afternoon
+			if (currentHour >= 14 && formData.type === 'afternoon') {
+				return 'Cannot apply for afternoon arrangements after 2:00 PM on the same day';
+			}
+		}
+
 		return null;
 	};
 
@@ -210,7 +234,7 @@ export default function RecurringArrangementForm({
 						name="start_date"
 						value={formData.start_date}
 						onChange={handleChange}
-						min={today} // Prevent selecting past dates in the datepicker
+						min={today}
 						required
 						className="mt-1 block w-full border border-gray-300 rounded p-2"
 					/>
