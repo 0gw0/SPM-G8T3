@@ -20,7 +20,15 @@ const ApplyCalendar = ({ arrangements, selectedDates, onDatesChange }) => {
 	);
 	const maxDateStr = getDateString(maxDate);
 
-	const existingDatesSet = new Set(arrangements.map((arr) => arr.date));
+	const existingDatesSet = new Set(
+		arrangements
+			.filter(
+				(arr) =>
+					arr.status !== 'withdrawal_approved' &&
+					arr.status !== 'pending_withdrawal'
+			)
+			.map((arr) => arr.date)
+	);
 
 	const clickTimeout = useRef(null);
 	const isSelecting = useRef(false);
@@ -50,32 +58,41 @@ const ApplyCalendar = ({ arrangements, selectedDates, onDatesChange }) => {
 		})
 	);
 
-	const arrangementEvents = arrangements.map((arrangement) => {
-		let classNames;
+	const arrangementEvents = arrangements
+		.map((arrangement) => {
+			let classNames;
 
-		switch (arrangement.status) {
-			case 'approved':
-				classNames = ['bg-green-500', 'text-white'];
-				break;
-			case 'rejected':
-				classNames = ['bg-red-500', 'text-white'];
-				break;
-			case 'pending':
-			default:
-				classNames = ['bg-yellow-400', 'text-black'];
-				break;
-		}
+			if (
+				arrangement.status === 'withdrawal_approved' ||
+				arrangement.status === 'pending_withdrawal'
+			) {
+				return null;
+			}
 
-		return {
-			title: arrangement.type,
-			start: arrangement.date,
-			allDay: true,
-			classNames,
-			extendedProps: { status: arrangement.status },
-			order: getEventOrder(arrangement.type),
-			display: 'block',
-		};
-	});
+			switch (arrangement.status) {
+				case 'approved':
+					classNames = ['bg-green-500', 'text-white'];
+					break;
+				case 'rejected':
+					classNames = ['bg-red-500', 'text-white'];
+					break;
+				case 'pending':
+				default:
+					classNames = ['bg-yellow-400', 'text-black'];
+					break;
+			}
+
+			return {
+				title: arrangement.type,
+				start: arrangement.date,
+				allDay: true,
+				classNames,
+				extendedProps: { status: arrangement.status },
+				order: getEventOrder(arrangement.type),
+				display: 'block',
+			};
+		})
+		.filter((event) => event !== null);
 
 	const dayCellClassNames = (arg) => {
 		const cellDateStr = getDateString(arg.date);
