@@ -1,10 +1,13 @@
-import { NextResponse } from "next/server";
-import { createClient } from "../../../../utils/supabase/server";
-import { checkViewOwnPermission } from "../../../../utils/rolePermissions";
+import { POST } from './route';  
+import { createClient } from '@/utils/supabase/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { checkViewOwnPermission } from '@/utils/rolePermissions';
+import { handler as viewOwnHandler } from '../view-own/route.js';
 
-// Mocking the external dependencies so we don't hit real external systems
-jest.mock("../../../../utils/supabase/server", () => ({
-    createClient: jest.fn(), // Mock only the createClient function that initializes Supabase
+
+// Mock the Supabase client to simulate a 200 status success
+jest.mock('@/utils/supabase/server', () => ({
+    createClient: jest.fn(),
 }));
 
 jest.mock("../../../../utils/rolePermissions", () => ({
@@ -19,6 +22,115 @@ jest.mock("./route", () => ({
 
 // Require the mocked GET handler
 import { GET } from "./route";
+
+
+
+describe('POST handler for WFH arrangements', () => {
+    let mockSupabaseClient;
+    let mockFormData;
+    let mockRequest;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+
+        // Create a mock Supabase client with only the essential mocked methods
+        mockSupabaseClient = {
+            from: jest.fn().mockReturnValue({
+                select: jest.fn().mockResolvedValue({ data: [], error: null }), //successful select
+                insert: jest.fn().mockResolvedValue({ data: [{ arrangement_id: '456' }], error: null }), // successful insert
+            }),
+            auth: {
+                getUser: jest.fn().mockResolvedValue({
+                    data: { user: { user_metadata: { staff_id: 'mock-staff-id' } } },
+                    error: null,
+                }),
+            },
+        };
+
+        // Make createClient return the mocked client
+        createClient.mockReturnValue(mockSupabaseClient);
+
+        // Mock request and formData
+        mockFormData = {
+            get: jest.fn((key) => {
+                if (key === 'arrangementType') return 'adhoc';
+                if (key === 'dates') return JSON.stringify({ '2024-10-10': 'full-day' });
+                if (key === 'reason') return 'Medical';
+            }),
+        };
+
+        // Mock request
+        mockRequest = new NextRequest('https://example.com/api/schedule/apply', {
+            method: 'POST',
+            headers: new Headers({ Authorization: 'Bearer mock-token' }),
+        });
+        mockRequest.formData = jest.fn().mockResolvedValue(mockFormData);
+    });
+
+    it('should successfully create a new adhoc arrangement and return 200 status', async () => {
+        try {
+            // Execute the POST handler
+            const response = await POST(mockRequest);
+
+            // Verify that the response status is 200
+            expect(response.status).toBe(200);
+
+            // Verify the response data message
+            const responseData = await response.json();
+            console.log(responseData)
+            expect(responseData.message).toBe('Application successful');
+            expect(responseData.arrangements).toEqual([
+                { arrangement_id: '456' }
+            ]);
+        } catch (error) {
+            console.error("Error in POST handler:", error);
+        }
+    });
+
+
+
+        // it('should return 400 for missing staff_id', async () => {
+        //     mockSupabaseClient.auth.getUser.mockResolvedValue({
+        //         data: { user: { user_metadata: {} } },
+        //         error: null,
+        //     });
+
+        //     const response = await POST(mockRequest);
+        //     expect(response.status).toBe(400);
+            
+        //     const responseData = await response.json();
+        //     expect(responseData.error).toBe("Staff ID not found in user metadata");
+        // });
+
+        it('should return 500 and internal server error on arrangement insertion failure', async () => {
+            mockFormData.get
+                .mockReturnValueOnce('adhoc')
+                .mockReturnValueOnce(JSON.stringify({ '2024-10-10': 'full-day' }))
+                .mockReturnValueOnce('Medical');
+
+            mockSupabaseClient.auth.getUser.mockResolvedValue({
+                data: { user: { user_metadata: { staff_id: 'mock-staff-id' } } },
+                error: null,
+            });
+
+            mockSupabaseClient.from.mockImplementation((tableName) => ({
+                select: jest.fn().mockResolvedValue({
+                    data: tableName === 'employee' ? { reporting_manager: 'manager-id' } : null,
+                    error: null,
+                }),
+                insert: jest.fn().mockResolvedValue({
+                    data: null,
+                    error: { message: 'Insert failed' },
+                }),
+            }));
+
+            const response = await POST(mockRequest);
+            expect(response.status).toBe(500);
+            
+            const responseData = await response.json();
+            expect(responseData.error).toBe("Internal server error");
+        });
+});
 
 // Test suite for GET handler
 describe("GET handler for view-own route", () => {

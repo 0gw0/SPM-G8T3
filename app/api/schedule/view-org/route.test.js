@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { checkViewOrgPermission } from "@/utils/rolePermissions";
-import { GET } from "./route"; // Adjust the import according to your file structure
+import { GET } from "./route"; 
 
 jest.mock("@/utils/supabase/server", () => ({
     createClient: jest.fn(),
