@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 
-export default function RecurringArrangementForm({ onArrangementsUpdate }) {
+export default function RecurringArrangementForm({
+	onArrangementsUpdate,
+	checkForOverlaps,
+	onSuccess,
+}) {
 	const [formData, setFormData] = useState({
 		start_date: '',
 		end_date: '',
@@ -12,14 +16,66 @@ export default function RecurringArrangementForm({ onArrangementsUpdate }) {
 
 	const [attachment, setAttachment] = useState(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [error, setError] = useState(null);
 	const supabase = createClient();
+
+	const isDateInPast = (dateString) => {
+		const today = new Date();
+		today.setHours(0, 0, 0, 0); // Reset time part for accurate date comparison
+		const inputDate = new Date(dateString);
+		return inputDate < today;
+	};
+
+	const validateDates = () => {
+		const now = new Date();
+		const currentHour = now.getHours();
+		const startDate = new Date(formData.start_date);
+
+		if (isDateInPast(formData.start_date)) {
+			return 'Start date cannot be in the past';
+		}
+
+		if (formData.end_date && formData.start_date > formData.end_date) {
+			return 'End date must be after start date';
+		}
+
+		// Check if trying to apply for today
+		const isToday = startDate.toDateString() === now.toDateString();
+
+		if (isToday) {
+			// After 9am restriction for morning and full-day
+			if (
+				currentHour >= 9 &&
+				(formData.type === 'morning' || formData.type === 'full-day')
+			) {
+				return 'Cannot apply for morning or full-day arrangements after 9:00 AM on the same day';
+			}
+
+			// After 2pm restriction for afternoon
+			if (currentHour >= 14 && formData.type === 'afternoon') {
+				return 'Cannot apply for afternoon arrangements after 2:00 PM on the same day';
+			}
+		}
+
+		return null;
+	};
 
 	const handleChange = (e) => {
 		const { name, value } = e.target;
-		setFormData((prevData) => ({
-			...prevData,
-			[name]: value,
-		}));
+		setFormData((prevData) => {
+			const newData = { ...prevData, [name]: value };
+
+			// If changing start date, ensure end date is valid
+			if (name === 'start_date') {
+				// If there's an end date and it's now before the new start date
+				if (newData.end_date && newData.end_date < value) {
+					newData.end_date = value; // Set end date to match start date
+				}
+			}
+
+			return newData;
+		});
+		setError(null);
 	};
 
 	const handleFileChange = (e) => {
@@ -35,8 +91,25 @@ export default function RecurringArrangementForm({ onArrangementsUpdate }) {
 	const handleSubmit = async (e) => {
 		e.preventDefault();
 		setIsSubmitting(true);
+		setError(null);
 
 		try {
+			// Check dates first
+			const dateError = validateDates();
+			if (dateError) {
+				setError(dateError);
+				setIsSubmitting(false);
+				return;
+			}
+
+			// Check for overlaps
+			const overlapCheck = checkForOverlaps(formData);
+			if (overlapCheck.hasOverlap) {
+				setError(overlapCheck.message);
+				setIsSubmitting(false);
+				return;
+			}
+
 			const { data: sessionData, error: sessionError } =
 				await supabase.auth.getSession();
 
@@ -78,6 +151,7 @@ export default function RecurringArrangementForm({ onArrangementsUpdate }) {
 
 			if (result.arrangements) {
 				onArrangementsUpdate(result.arrangements);
+				onSuccess?.();
 			}
 
 			// Reset form
@@ -89,9 +163,10 @@ export default function RecurringArrangementForm({ onArrangementsUpdate }) {
 				reason: '',
 			});
 			setAttachment(null);
+			setError(null);
 		} catch (error) {
 			console.error('Submission error:', error);
-			alert(error.message || 'An error occurred during submission.');
+			setError(error.message || 'An error occurred during submission.');
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -136,8 +211,15 @@ export default function RecurringArrangementForm({ onArrangementsUpdate }) {
 		}
 	};
 
+	const today = new Date().toISOString().split('T')[0];
+
 	return (
 		<form onSubmit={handleSubmit} className="mt-6 space-y-6">
+			{error && (
+				<div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+					{error}
+				</div>
+			)}
 			<div className="grid grid-cols-2 gap-4">
 				<div>
 					<label
@@ -152,6 +234,7 @@ export default function RecurringArrangementForm({ onArrangementsUpdate }) {
 						name="start_date"
 						value={formData.start_date}
 						onChange={handleChange}
+						min={today}
 						required
 						className="mt-1 block w-full border border-gray-300 rounded p-2"
 					/>
@@ -169,8 +252,14 @@ export default function RecurringArrangementForm({ onArrangementsUpdate }) {
 						name="end_date"
 						value={formData.end_date}
 						onChange={handleChange}
+						min={formData.start_date || today}
 						required
-						className="mt-1 block w-full border border-gray-300 rounded p-2"
+						className={`mt-1 block w-full border rounded p-2 ${
+							formData.start_date &&
+							formData.end_date < formData.start_date
+								? 'border-red-300'
+								: 'border-gray-300'
+						}`}
 					/>
 				</div>
 			</div>

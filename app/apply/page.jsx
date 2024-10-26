@@ -6,9 +6,11 @@ import RecurringArrangementForm from '@/components/RecurringArrangementForm';
 import ArrangementTypeSelector from '@/components/ArrangementTypeSelector';
 import ArrangementTable from '@/components/ArrangementTable';
 import AdHocArrangementForm from '@/components/AdHocArrangementForm';
+import { processArrangements, checkRecurringOverlap } from '@/utils/dates';
 
 export default function OwnArrangements() {
 	const [arrangements, setArrangements] = useState([]);
+	const [rawArrangements, setRawArrangements] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 	const [arrangementType, setArrangementType] = useState('adhoc');
@@ -43,6 +45,8 @@ export default function OwnArrangements() {
 			}
 
 			const result = await response.json();
+			setRawArrangements(result.data);
+
 			const processedArrangements = processArrangements(result.data);
 			setArrangements(processedArrangements);
 		} catch (error) {
@@ -57,48 +61,19 @@ export default function OwnArrangements() {
 		fetchArrangements();
 	}, []);
 
-	const processArrangements = (arrangementsData) => {
-		return arrangementsData.flatMap((arrangement) => {
-			if (arrangement.recurrence_pattern === 'one-time') {
-				return [arrangement];
-			} else {
-				return generateRecurringDates(arrangement);
-			}
-		});
-	};
-
-	const generateRecurringDates = (arrangement) => {
-		const { start_date, end_date, recurrence_pattern, type } = arrangement;
-		const dates = [];
-		let currentDate = new Date(start_date);
-		const endDate = new Date(end_date);
-
-		while (currentDate <= endDate) {
-			dates.push({
-				...arrangement,
-				date: currentDate.toISOString().split('T')[0],
-				type,
-			});
-
-			switch (recurrence_pattern) {
-				case 'weekly':
-					currentDate.setDate(currentDate.getDate() + 7);
-					break;
-				case 'bi-weekly':
-					currentDate.setDate(currentDate.getDate() + 14);
-					break;
-				case 'monthly':
-					currentDate.setMonth(currentDate.getMonth() + 1);
-					break;
-			}
-		}
-
-		return dates;
-	};
-
 	const handleArrangementsUpdate = (newArrangements) => {
+		setRawArrangements(newArrangements);
 		const processedArrangements = processArrangements(newArrangements);
 		setArrangements(processedArrangements);
+	};
+
+	const checkForOverlaps = (newArrangement) => {
+		return checkRecurringOverlap(newArrangement, rawArrangements);
+	};
+
+	// New function to handle successful form submission
+	const handleFormSuccess = () => {
+		setArrangementType('adhoc');
 	};
 
 	if (loading) return <div className="text-center mt-8">Loading...</div>;
@@ -109,7 +84,7 @@ export default function OwnArrangements() {
 		<div className="container mx-auto mt-8 p-4">
 			<h1 className="text-2xl font-bold mb-4">Own Arrangements</h1>
 			<div className="overflow-x-auto">
-				<ArrangementTable arrangements={arrangements} />
+				<ArrangementTable arrangements={rawArrangements} />
 				<ArrangementTypeSelector
 					arrangementType={arrangementType}
 					setArrangementType={setArrangementType}
@@ -122,7 +97,10 @@ export default function OwnArrangements() {
 						/>
 					) : (
 						<RecurringArrangementForm
+							arrangements={arrangements}
 							onArrangementsUpdate={handleArrangementsUpdate}
+							checkForOverlaps={checkForOverlaps}
+							onSuccess={handleFormSuccess}
 						/>
 					)}
 				</div>

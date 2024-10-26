@@ -20,10 +20,32 @@ const ApplyCalendar = ({ arrangements, selectedDates, onDatesChange }) => {
 	);
 	const maxDateStr = getDateString(maxDate);
 
-	const existingDatesSet = new Set(arrangements.map((arr) => arr.date));
+	const existingDatesSet = new Set(
+		arrangements
+			.filter(
+				(arr) =>
+					arr.status !== 'withdrawal_approved' &&
+					arr.status !== 'pending_withdrawal'
+			)
+			.map((arr) => arr.date)
+	);
 
 	const clickTimeout = useRef(null);
 	const isSelecting = useRef(false);
+
+	// Helper function to get event order based on type
+	const getEventOrder = (type) => {
+		switch (type) {
+			case 'morning':
+				return 1;
+			case 'afternoon':
+				return 2;
+			case 'full-day':
+				return 0;
+			default:
+				return 3;
+		}
+	};
 
 	const selectedDateEvents = Object.entries(selectedDates).map(
 		([date, type]) => ({
@@ -31,33 +53,46 @@ const ApplyCalendar = ({ arrangements, selectedDates, onDatesChange }) => {
 			start: date,
 			allDay: true,
 			classNames: ['bg-blue-500', 'text-white'],
+			order: getEventOrder(type),
+			display: 'block',
 		})
 	);
 
-	const arrangementEvents = arrangements.map((arrangement) => {
-		let classNames;
+	const arrangementEvents = arrangements
+		.map((arrangement) => {
+			let classNames;
 
-		switch (arrangement.status) {
-			case 'approved':
-				classNames = ['bg-green-500', 'text-white'];
-				break;
-			case 'rejected':
-				classNames = ['bg-red-500', 'text-white'];
-				break;
-			case 'pending':
-			default:
-				classNames = ['bg-yellow-400', 'text-black'];
-				break;
-		}
+			if (
+				arrangement.status === 'withdrawal_approved' ||
+				arrangement.status === 'pending_withdrawal'
+			) {
+				return null;
+			}
 
-		return {
-			title: arrangement.type,
-			start: arrangement.date,
-			allDay: true,
-			classNames,
-			extendedProps: { status: arrangement.status },
-		};
-	});
+			switch (arrangement.status) {
+				case 'approved':
+					classNames = ['bg-green-500', 'text-white'];
+					break;
+				case 'rejected':
+					classNames = ['bg-red-500', 'text-white'];
+					break;
+				case 'pending':
+				default:
+					classNames = ['bg-yellow-400', 'text-black'];
+					break;
+			}
+
+			return {
+				title: arrangement.type,
+				start: arrangement.date,
+				allDay: true,
+				classNames,
+				extendedProps: { status: arrangement.status },
+				order: getEventOrder(arrangement.type),
+				display: 'block',
+			};
+		})
+		.filter((event) => event !== null);
 
 	const dayCellClassNames = (arg) => {
 		const cellDateStr = getDateString(arg.date);
@@ -173,6 +208,9 @@ const ApplyCalendar = ({ arrangements, selectedDates, onDatesChange }) => {
 					select={handleDateSelect}
 					dateClick={handleDateClick}
 					unselectAuto={false}
+					eventOrder="order"
+					displayEventEnd={false}
+					eventDisplay="block"
 				/>
 			</div>
 			<Legend />

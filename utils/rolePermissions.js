@@ -1,7 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
-
 export const checkRolePermission = (handler) => async (req) => {
     const supabase = createClient();
 
@@ -31,6 +30,49 @@ export const checkRolePermission = (handler) => async (req) => {
     employee.role = user.user_metadata.role;
 
     return handler(req, user, employee);
+};
+
+export const checkAllReportingManagers = (handler) => async (req) => {
+    const supabase = createClient();
+
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Fetch employee data using the staff_id from user metadata
+    const { data: employee, error1 } = await supabase
+        .from("employee")
+        .select("*")
+        .eq("staff_id", user.user_metadata.staff_id)
+        .single();
+
+    // Fetch employee data using the staff_id from user metadata
+    const { data: managers, error2 } = await supabase
+        .from("employee")
+        .select("reporting_manager", { distinct: true });
+
+    if (error1 || !employee) {
+        return NextResponse.json(
+            { error: "Employee not found" },
+            { status: 404 }
+        );
+    }
+
+    if (error2 || !employee) {
+        return NextResponse.json(
+            { error: "Reporting Managers not found" },
+            { status: 404 }
+        );
+    }
+
+    // Add role from user metadata to the employee object
+    employee.role = user.user_metadata.role;
+
+    return handler(req, user, employee, managers);
 };
 
 export const checkViewOrgPermission = (handler) => async (req) => {
@@ -84,20 +126,19 @@ export const checkViewTeamPermission = (handler) => async (req) => {
 };
 
 export const checkApprovalPermission = (handler) => async (req) => {
-    return checkRolePermission(async (req, user, employee) => {
-        // Check if the employee is a regular user (role 2)
-        if (employee.role === 2) {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return checkAllReportingManagers(async (req, user, employee, managers) => {
+        // Check if the user is one of the reporting managers
+        const isManager = managers.some(
+            (manager) =>
+                manager.reporting_manager === user.user_metadata.staff_id
+        );
+
+        if (isManager) {
+            // Allow access if the user is in the managers list
+            return handler(req, user, employee, managers);
         }
 
-        // Check if the employee is a director (role 3) or manager (role 1)
-        if (employee.role === 3 || employee.role === 1) {
-            // Allow access to view data of those reporting to them
-            return handler(req, user, employee);
-        }
-
-        // If the role does not match the permissions, return forbidden
+        // If the user is not a manager, return forbidden
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     })(req);
 };
-

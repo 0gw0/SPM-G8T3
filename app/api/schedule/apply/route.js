@@ -2,12 +2,21 @@ import { NextResponse, NextRequest } from 'next/server';
 import { handler as viewOwnHandler } from '../view-own/route.js';
 import { checkViewOwnPermission } from '@/utils/rolePermissions';
 import { createClient } from '@/utils/supabase/server';
+import { generateRecurringDates } from '@/utils/dates';
+
+const doArrangementsConflict = (type1, type2) => {
+	if (type1 === 'full-day' || type2 === 'full-day') return true;
+	if (type1 === 'morning' && type2 === 'morning') return true;
+	if (type1 === 'afternoon' && type2 === 'afternoon') return true;
+	return false;
+};
 
 export const POST = checkViewOwnPermission(async (req) => {
+	let arrangementsToDelete = [];
+
 	try {
 		const supabase = createClient();
 
-		// Extract the token from the Authorization header
 		const token = req.headers.get('Authorization')?.replace('Bearer ', '');
 		if (!token) {
 			return NextResponse.json(
@@ -16,7 +25,6 @@ export const POST = checkViewOwnPermission(async (req) => {
 			);
 		}
 
-		// Get the user's session using the token
 		const {
 			data: { user },
 			error: userError,
@@ -39,7 +47,29 @@ export const POST = checkViewOwnPermission(async (req) => {
 			);
 		}
 
-		// Parse the request body
+		// Fetch the employee's reporting manager
+		const { data: employeeData, error: employeeError } = await supabase
+			.from('employee')
+			.select('reporting_manager')
+			.eq('staff_id', staff_id)
+			.single();
+
+		if (employeeError) {
+			console.error('Error fetching employee data:', employeeError);
+			return NextResponse.json(
+				{ error: 'Failed to fetch employee data' },
+				{ status: 500 }
+			);
+		}
+
+		if (!employeeData?.reporting_manager) {
+			console.error('No reporting manager found for employee');
+			return NextResponse.json(
+				{ error: 'No reporting manager assigned' },
+				{ status: 400 }
+			);
+		}
+
 		const formData = await req.formData();
 		const arrangementType = formData.get('arrangementType');
 
@@ -59,27 +89,78 @@ export const POST = checkViewOwnPermission(async (req) => {
 					status: 'pending',
 					location: 'home',
 					reason,
+					manager_id: employeeData.reporting_manager,
 				});
 			}
 		} else if (arrangementType === 'recurring') {
-			// Process recurring arrangement
-			const start_date = formData.get('start_date');
-			const end_date = formData.get('end_date');
-			const recurrence_pattern = formData.get('recurrence_pattern');
-			const type = formData.get('type');
-			const reason = formData.get('reason');
+			try {
+				const start_date = formData.get('start_date');
+				const end_date = formData.get('end_date');
+				const recurrence_pattern = formData.get('recurrence_pattern');
+				const type = formData.get('type');
+				const reason = formData.get('reason');
 
-			insertArrangements.push({
-				staff_id,
-				date: start_date, // Use start_date as the initial date
-				start_date,
-				end_date,
-				recurrence_pattern,
-				type,
-				status: 'pending',
-				location: 'home',
-				reason,
-			});
+				const recurringDates = generateRecurringDates(
+					start_date,
+					end_date,
+					recurrence_pattern
+				);
+
+				const { data: existingArrangements, error: fetchError } =
+					await supabase
+						.from('arrangement')
+						.select('arrangement_id, date, type')
+						.eq('staff_id', staff_id)
+						.eq('recurrence_pattern', 'one-time')
+						.in('date', recurringDates);
+
+				if (fetchError) {
+					throw new Error(
+						`Failed to fetch existing arrangements: ${fetchError.message}`
+					);
+				}
+
+				arrangementsToDelete = existingArrangements
+					.filter((existing) =>
+						doArrangementsConflict(existing.type, type)
+					)
+					.map((arr) => arr.arrangement_id);
+
+				if (arrangementsToDelete.length > 0) {
+					const { error: deleteError } = await supabase
+						.from('arrangement')
+						.delete()
+						.in('arrangement_id', arrangementsToDelete);
+
+					if (deleteError) {
+						throw new Error(
+							`Failed to delete conflicting arrangements: ${deleteError.message}`
+						);
+					}
+				}
+
+				insertArrangements.push({
+					staff_id,
+					date: start_date,
+					start_date,
+					end_date,
+					recurrence_pattern,
+					type,
+					status: 'pending',
+					location: 'home',
+					reason,
+					manager_id: employeeData.reporting_manager,
+				});
+			} catch (recurringError) {
+				console.error(
+					'Error processing recurring arrangement:',
+					recurringError
+				);
+				return NextResponse.json(
+					{ error: recurringError.message },
+					{ status: 500 }
+				);
+			}
 		} else {
 			return NextResponse.json(
 				{ error: 'Invalid arrangement type' },
@@ -101,7 +182,7 @@ export const POST = checkViewOwnPermission(async (req) => {
 			);
 		}
 
-		// Retrieve the user's own arrangements after insertion using viewOwnHandler
+		// Retrieve updated arrangements
 		const getRequest = new NextRequest(req.url, {
 			method: 'GET',
 			headers: req.headers,
@@ -113,11 +194,11 @@ export const POST = checkViewOwnPermission(async (req) => {
 
 		if (!updatedArrangementsResponse.ok) {
 			console.error(
-				'Error fetching arrangements:',
+				'Error fetching updated arrangements:',
 				updatedArrangementsResult.error
 			);
 			return NextResponse.json(
-				{ error: 'Failed to fetch arrangements' },
+				{ error: 'Failed to fetch updated arrangements' },
 				{ status: updatedArrangementsResponse.status }
 			);
 		}
@@ -125,18 +206,21 @@ export const POST = checkViewOwnPermission(async (req) => {
 		return NextResponse.json({
 			message: 'Application successful',
 			arrangements: updatedArrangementsResult.data || [],
+			deletedArrangements: arrangementsToDelete.length,
 		});
 	} catch (error) {
 		console.error('Unhandled error in POST /api/schedule/apply:', error);
 		return NextResponse.json(
-			{ error: 'Internal server error' },
+			{
+				error: 'Internal server error',
+				details: error.message,
+			},
 			{ status: 500 }
 		);
 	}
 });
 
 export const GET = checkViewOwnPermission(async (req) => {
-	// Existing GET handler code (if you want to keep the GET method)
 	const getRequest = new NextRequest(req.url, {
 		method: 'GET',
 		headers: req.headers,
