@@ -18,7 +18,7 @@
     "@fullcalendar/react": "^6.1.15",
     "@fullcalendar/timegrid": "^6.1.15",
     "@supabase/ssr": "^0.5.1",
-    "@supabase/supabase-js": "^2.45.4",
+    "@supabase/supabase-js": "^2.45.6",
     "csv-parser": "^3.0.0",
     "dotenv": "^16.4.5",
     "interaction": "^0.0.1",

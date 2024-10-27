@@ -16,7 +16,7 @@ export const POST = checkViewOwnPermission(async (req) => {
 
 	try {
 		const supabase = createClient();
-
+		//validation
 		const token = req.headers.get('Authorization')?.replace('Bearer ', '');
 		if (!token) {
 			return NextResponse.json(
@@ -191,7 +191,7 @@ export const POST = checkViewOwnPermission(async (req) => {
 		const updatedArrangementsResponse = await viewOwnHandler(getRequest);
 		const updatedArrangementsResult =
 			await updatedArrangementsResponse.json();
-
+		console.log(updatedArrangementsResponse)
 		if (!updatedArrangementsResponse.ok) {
 			console.error(
 				'Error fetching updated arrangements:',

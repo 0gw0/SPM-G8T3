@@ -12,7 +12,6 @@ const handler = async (req, user, employee, isManagerOrDirector) => {
 
     try {
         if (isManagerOrDirector) {
-            console.log("Fetching arrangements for Director or Manager...");
 
             // Fetch managed team employees
             const { data: managerEmployees, error: managerEmpError } =
@@ -24,10 +23,6 @@ const handler = async (req, user, employee, isManagerOrDirector) => {
                     .eq("reporting_manager", staff_id);
 
             if (managerEmpError) {
-                console.error(
-                    "Error fetching managed team employees:",
-                    managerEmpError
-                );
                 return NextResponse.json(
                     { error: "Failed to fetch managed team employees" },
                     { status: 500 }
@@ -69,10 +64,6 @@ const handler = async (req, user, employee, isManagerOrDirector) => {
                 reportingManagerError &&
                 reportingManagerError.code !== "PGRST116"
             ) {
-                console.error(
-                    "Error fetching reporting manager:",
-                    reportingManagerError
-                );
                 return NextResponse.json(
                     { error: "Failed to fetch reporting manager" },
                     { status: 500 }
@@ -86,7 +77,6 @@ const handler = async (req, user, employee, isManagerOrDirector) => {
                 .eq("reporting_manager", employee.reporting_manager);
 
             if (teammatesError) {
-                console.error("Error fetching teammates:", teammatesError);
                 return NextResponse.json(
                     { error: "Failed to fetch teammates" },
                     { status: 500 }
@@ -108,7 +98,6 @@ const handler = async (req, user, employee, isManagerOrDirector) => {
         }
         // role 2 employees
         else {
-            console.log("Fetching arrangements for Employee...");
 
             // Fetch the reporting manager's information
             const { data: reportingManager, error: reportingManagerError } =
@@ -124,10 +113,6 @@ const handler = async (req, user, employee, isManagerOrDirector) => {
                 reportingManagerError &&
                 reportingManagerError.code !== "PGRST116"
             ) {
-                console.error(
-                    "Error fetching reporting manager:",
-                    reportingManagerError
-                );
                 return NextResponse.json(
                     { error: "Failed to fetch reporting manager" },
                     { status: 500 }
@@ -141,7 +126,6 @@ const handler = async (req, user, employee, isManagerOrDirector) => {
                 .eq("reporting_manager", employee.reporting_manager);
 
             if (teammatesError) {
-                console.error("Error fetching teammates:", teammatesError);
                 return NextResponse.json(
                     { error: "Failed to fetch teammates" },
                     { status: 500 }
@@ -160,15 +144,12 @@ const handler = async (req, user, employee, isManagerOrDirector) => {
                 employee
             );
 
-            console.log("Team Arrangements for Employee:", teamArrangements);
-
             return NextResponse.json({
                 teamMemberArrangements: teamArrangements,
                 role: employee.role,
             });
         }
     } catch (error) {
-        console.error("Unexpected error:", error);
         return NextResponse.json(
             { error: "Unexpected error occurred", details: error },
             { status: 500 }
@@ -209,7 +190,6 @@ async function fetchArrangementsByStaff(supabase, employees, loggedInEmployee) {
         .order("date", { ascending: true });
 
     if (error) {
-        console.error("Error fetching arrangements:", error);
         return [];
     }
 
