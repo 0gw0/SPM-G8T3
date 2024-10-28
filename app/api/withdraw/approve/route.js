@@ -81,24 +81,6 @@ export async function POST(req) {
 			);
 		}
 
-		// Send email notification
-		try {
-			await fetch('/api/send-email', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({
-					type: 'withdrawalStatusUpdate',
-					employee_id: arrangement.staff_id,
-					arrangement_id: arrangement_id,
-					status: action === 'approve' ? 'approved' : 'rejected',
-				}),
-			});
-		} catch (emailError) {
-			console.error('Failed to send email notification:', emailError);
-		}
-
 		return NextResponse.json({
 			message: `Withdrawal request ${action}d successfully`,
 		});

@@ -13,6 +13,20 @@ const WithdrawalApprovalTable = ({ arrangements, onUpdateStatus }) => {
 
 			const token = sessionData.session.access_token;
 
+			// First get the employee_id from the arrangement
+			const { data: arrangement, error: arrangementError } =
+				await supabase
+					.from('arrangement')
+					.select('staff_id')
+					.eq('arrangement_id', arrangementId)
+					.single();
+
+			if (arrangementError) {
+				console.error('Error fetching arrangement:', arrangementError);
+				throw new Error('Failed to fetch arrangement details');
+			}
+
+			// Process the approval/rejection
 			const response = await fetch('/api/withdraw/approve', {
 				method: 'POST',
 				headers: {
@@ -31,6 +45,29 @@ const WithdrawalApprovalTable = ({ arrangements, onUpdateStatus }) => {
 			}
 
 			const result = await response.json();
+
+			// Send email notification
+			try {
+				const emailResponse = await fetch('/api/send-email', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						type: 'withdrawalStatusUpdate',
+						employee_id: arrangement.staff_id,
+						arrangement_id: arrangementId,
+						status: action === 'approve' ? 'approved' : 'rejected',
+					}),
+				});
+
+				if (!emailResponse.ok) {
+					console.error('Failed to send email notification');
+				}
+			} catch (emailError) {
+				console.error('Error sending email:', emailError);
+			}
+
 			alert(
 				result.message || `Withdrawal request ${action}d successfully`
 			);
