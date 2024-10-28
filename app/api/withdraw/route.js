@@ -4,8 +4,6 @@ import { createClient } from '@/utils/supabase/server';
 export async function POST(req) {
 	try {
 		const supabase = createClient();
-
-		// Verify token and get user (existing code...)
 		const token = req.headers.get('Authorization')?.replace('Bearer ', '');
 		if (!token) {
 			return NextResponse.json(
@@ -40,7 +38,7 @@ export async function POST(req) {
 		// Verify the arrangement belongs to the user and is in a valid status for withdrawal
 		const { data: arrangement, error: fetchError } = await supabase
 			.from('arrangement')
-			.select('*, employee!arrangement_manager_id_fkey(email)')
+			.select('*')
 			.eq('arrangement_id', arrangement_id)
 			.eq('staff_id', staff_id)
 			.not(
@@ -84,9 +82,8 @@ export async function POST(req) {
 					'Content-Type': 'application/json',
 				},
 				body: JSON.stringify({
-					to: arrangement.employee.email,
-					subject: 'Arrangement Withdrawal Request',
-					type: 'withdrawal_request',
+					type: 'withdrawalRequest',
+					employee_id: staff_id,
 					arrangement_id: arrangement_id,
 				}),
 			});

@@ -144,8 +144,16 @@ export default function RecurringArrangementForm({
 
 			const result = await response.json();
 
-			// Always send email notification
-			await sendEmailNotification(employee_id, attachment);
+			if (
+				result.newArrangementIds &&
+				result.newArrangementIds.length > 0
+			) {
+				await sendEmailNotification(
+					employee_id,
+					attachment,
+					result.newArrangementIds
+				);
+			}
 
 			alert(result.message || 'Form submitted successfully.');
 
@@ -172,9 +180,19 @@ export default function RecurringArrangementForm({
 		}
 	};
 
-	const sendEmailNotification = async (employee_id, pdf_attachment) => {
+	const sendEmailNotification = async (
+		employee_id,
+		pdf_attachment,
+		newArrangementIds
+	) => {
 		try {
-			let emailData = { employee_id };
+			// For recurring arrangements, we'll send one email for the primary arrangement
+			const arrangement_id = newArrangementIds[0];
+			let emailData = {
+				type: 'newArrangement',
+				employee_id,
+				arrangement_id,
+			};
 
 			if (pdf_attachment) {
 				const base64Attachment = await new Promise(
@@ -203,8 +221,6 @@ export default function RecurringArrangementForm({
 					errorData.error || 'Failed to send email notification'
 				);
 			}
-
-			return await response.json();
 		} catch (error) {
 			console.error('Error in sendEmailNotification:', error);
 			throw error;
