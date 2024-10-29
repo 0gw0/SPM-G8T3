@@ -182,6 +182,8 @@ export const POST = checkViewOwnPermission(async (req) => {
 			);
 		}
 
+		const newArrangementIds = insertedData.map((arr) => arr.arrangement_id);
+
 		// Retrieve updated arrangements
 		const getRequest = new NextRequest(req.url, {
 			method: 'GET',
@@ -207,6 +209,7 @@ export const POST = checkViewOwnPermission(async (req) => {
 			message: 'Application successful',
 			arrangements: updatedArrangementsResult.data || [],
 			deletedArrangements: arrangementsToDelete.length,
+			newArrangementIds: newArrangementIds,
 		});
 	} catch (error) {
 		console.error('Unhandled error in POST /api/schedule/apply:', error);

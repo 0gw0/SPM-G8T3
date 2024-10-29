@@ -5,7 +5,6 @@ export async function POST(req) {
 	try {
 		const supabase = createClient();
 
-		// Verify token
 		const token = req.headers.get('Authorization')?.replace('Bearer ', '');
 		if (!token) {
 			return NextResponse.json(
@@ -45,6 +44,20 @@ export async function POST(req) {
 			);
 		}
 
+		// Get arrangement details including employee ID
+		const { data: arrangement, error: fetchError } = await supabase
+			.from('arrangement')
+			.select('*, staff_id')
+			.eq('arrangement_id', arrangement_id)
+			.single();
+
+		if (fetchError || !arrangement) {
+			return NextResponse.json(
+				{ error: 'Arrangement not found' },
+				{ status: 404 }
+			);
+		}
+
 		const newStatus =
 			action === 'approve'
 				? 'withdrawal_approved'
@@ -66,36 +79,6 @@ export async function POST(req) {
 				{ error: 'Failed to update arrangement status' },
 				{ status: 500 }
 			);
-		}
-
-		// Send email notification
-		try {
-			const { data: arrangement } = await supabase
-				.from('arrangement')
-				.select('*, employee:staff_id(email)')
-				.eq('arrangement_id', arrangement_id)
-				.single();
-
-			if (arrangement) {
-				await fetch('/api/send-email', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify({
-						to: arrangement.employee.email,
-						subject: `Withdrawal Request ${
-							action === 'approve' ? 'Approved' : 'Rejected'
-						}`,
-						type: 'withdrawal_response',
-						arrangement_id,
-						status: newStatus,
-						comments,
-					}),
-				});
-			}
-		} catch (emailError) {
-			console.error('Failed to send email notification:', emailError);
 		}
 
 		return NextResponse.json({

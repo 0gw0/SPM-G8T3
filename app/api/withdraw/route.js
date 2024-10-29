@@ -4,8 +4,6 @@ import { createClient } from '@/utils/supabase/server';
 export async function POST(req) {
 	try {
 		const supabase = createClient();
-
-		// Verify token and get user (existing code...)
 		const token = req.headers.get('Authorization')?.replace('Bearer ', '');
 		if (!token) {
 			return NextResponse.json(
@@ -37,10 +35,20 @@ export async function POST(req) {
 		const body = await req.json();
 		const { arrangement_id } = body;
 
-		// Verify the arrangement belongs to the user and is in a valid status for withdrawal
+		// Get arrangement details including manager info
 		const { data: arrangement, error: fetchError } = await supabase
 			.from('arrangement')
-			.select('*, employee!arrangement_manager_id_fkey(email)')
+			.select(
+				`
+                *,
+                manager:manager_id(
+                    staff_id,
+                    staff_fname,
+                    staff_lname,
+                    email
+                )
+            `
+			)
 			.eq('arrangement_id', arrangement_id)
 			.eq('staff_id', staff_id)
 			.not(
@@ -74,24 +82,6 @@ export async function POST(req) {
 				{ error: 'Failed to submit withdrawal request' },
 				{ status: 500 }
 			);
-		}
-
-		// Send email notification to manager
-		try {
-			await fetch('/api/send-email', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({
-					to: arrangement.employee.email,
-					subject: 'Arrangement Withdrawal Request',
-					type: 'withdrawal_request',
-					arrangement_id: arrangement_id,
-				}),
-			});
-		} catch (emailError) {
-			console.error('Failed to send email notification:', emailError);
 		}
 
 		// Fetch updated arrangements list

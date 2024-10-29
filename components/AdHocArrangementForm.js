@@ -150,7 +150,16 @@ const AdHocArrangementForm = ({
 
 			const result = await response.json();
 
-			await sendEmailNotification(employee_id, attachment);
+			if (
+				result.newArrangementIds &&
+				result.newArrangementIds.length > 0
+			) {
+				await sendEmailNotification(
+					employee_id,
+					attachment,
+					result.newArrangementIds
+				);
+			}
 
 			if (result.arrangements && result.arrangements.length > 0) {
 				onArrangementsUpdate(result.arrangements);
@@ -173,39 +182,48 @@ const AdHocArrangementForm = ({
 		}
 	};
 
-	const sendEmailNotification = async (employee_id, pdf_attachment) => {
+	const sendEmailNotification = async (
+		employee_id,
+		pdf_attachment,
+		newArrangementIds
+	) => {
 		try {
-			let emailData = { employee_id };
+			// For adhoc arrangements, send email for each arrangement
+			for (const arrangement_id of newArrangementIds) {
+				let emailData = {
+					type: 'newArrangement',
+					employee_id,
+					arrangement_id,
+				};
 
-			if (pdf_attachment) {
-				const base64Attachment = await new Promise(
-					(resolve, reject) => {
-						const reader = new FileReader();
-						reader.readAsDataURL(pdf_attachment);
-						reader.onload = () =>
-							resolve(reader.result.split(',')[1]);
-						reader.onerror = (error) => reject(error);
-					}
-				);
-				emailData.pdf_attachment = base64Attachment;
+				if (pdf_attachment) {
+					const base64Attachment = await new Promise(
+						(resolve, reject) => {
+							const reader = new FileReader();
+							reader.readAsDataURL(pdf_attachment);
+							reader.onload = () =>
+								resolve(reader.result.split(',')[1]);
+							reader.onerror = (error) => reject(error);
+						}
+					);
+					emailData.pdf_attachment = base64Attachment;
+				}
+
+				const response = await fetch('/api/send-email', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify(emailData),
+				});
+
+				if (!response.ok) {
+					const errorData = await response.json();
+					throw new Error(
+						errorData.error || 'Failed to send email notification'
+					);
+				}
 			}
-
-			const response = await fetch('/api/send-email', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify(emailData),
-			});
-
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(
-					errorData.error || 'Failed to send email notification'
-				);
-			}
-
-			return await response.json();
 		} catch (error) {
 			console.error('Error in sendEmailNotification:', error);
 			throw error;

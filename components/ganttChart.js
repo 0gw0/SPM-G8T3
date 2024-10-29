@@ -12,128 +12,94 @@ export function transformEmployeeData(employees) {
 
         // Prepare the label for the staff member
         const label = {
-            icon: null, // Default icon
-            title: `${capitalizeFirstLetter(employee.staff_fname)} ${capitalizeFirstLetter(employee.staff_lname)}`, // Full name with capitalized first letters
-            subtitle: capitalizeFirstLetter(employee.position || 'no position'), // Capitalize position or fallback
+            icon: null,
+            title: `${capitalizeFirstLetter(employee.staff_fname)} ${capitalizeFirstLetter(employee.staff_lname)}`,
+            subtitle: capitalizeFirstLetter(employee.position || 'no position'),
             department: employee.dept
         };
 
         // Initialize data for employee arrangements
         const employeeData = {
-            id: staffId.toString(), // Unique staff id
+            id: staffId.toString(),
             label: label,
-            data: [], // Initialize as an empty array
+            data: [],
         };
 
         // Check if there are arrangements for the staff member
         if (employee.arrangements && employee.arrangements.length > 0) {
             employee.arrangements.forEach((arrangement) => {
-                // Check if status is 'approved' and start_date and end_date are not null
                 if (
                     arrangement.status === "approved" &&
                     arrangement.start_date &&
                     arrangement.end_date && 
                     arrangement.location === "home"
                 ) {
-                    let startDate, endDate, bgColor;
+                    let startDate, bgColor;
 
-                    // Set start and end dates and bgColor based on type
+                    // Set start date and bgColor based on type, using same-day end
                     if (arrangement.type === "full-day") {
-                        startDate = new Date(
-                            `${arrangement.start_date}T09:00:00`
-                        );
-                        endDate = new Date(`${arrangement.end_date}T18:00:00`);
+                        startDate = new Date(`${arrangement.start_date}T09:00:00`);
                         bgColor = "#b5cbcc"; // Full-day background color
                     } else if (arrangement.type === "morning") {
-                        startDate = new Date(
-                            `${arrangement.start_date}T09:00:00`
-                        );
-                        endDate = new Date(`${arrangement.end_date}T13:00:00`);
+                        startDate = new Date(`${arrangement.start_date}T09:00:00`);
                         bgColor = "#cddeef"; // Morning background color
                     } else if (arrangement.type === "afternoon") {
-                        startDate = new Date(
-                            `${arrangement.start_date}T14:00:00`
-                        );
-                        endDate = new Date(`${arrangement.end_date}T18:00:00`);
+                        startDate = new Date(`${arrangement.start_date}T14:00:00`);
                         bgColor = "#f3dbbe"; // Afternoon background color
                     } else {
-                        // Default case, for other types
-                        startDate = new Date(
-                            `${arrangement.start_date}T08:00:00`
-                        );
-                        endDate = new Date(`${arrangement.end_date}T18:00:00`);
-                        bgColor =
-                            arrangement.location === "home"
-                                ? "rgb(254,165,177)"
-                                : "green";
+                        startDate = new Date(`${arrangement.start_date}T08:00:00`);
+                        bgColor = arrangement.location === "home" ? "rgb(254,165,177)" : "green";
                     }
 
-                    // Add initial arrangement
-                    employeeData.data.push({
-                        id: arrangement.arrangement_id.toString(), // Use arrangement_id as unique id
-                        startDate: startDate,
-                        endDate: endDate,
-                        occupancy: null, // Set occupancy or default to 3600
-                        title: arrangement.location === 'home' ? 'WFH' : 'Office',
-                        subtitle: capitalizeFirstLetter(arrangement.type),
-                        description: arrangement.reason || 'No reason provided', // Fallback to 'No reason provided'
-                        bgColor: bgColor
-                    });
+                    // Calculate the end time based on the start time and type
+                    let durationHours = arrangement.type === "full-day" ? 9 : 4;
+                    let endDate = new Date(startDate.getTime() + durationHours * 60 * 60 * 1000);
 
-                    // Handle recurrence pattern
-                    if (arrangement.recurrence_pattern) {
-                        const recurrenceStartDate = new Date(startDate);
-                        const recurrenceEndDate = new Date(endDate);
-                        const threeMonthsLater = new Date(recurrenceStartDate);
-                        threeMonthsLater.setMonth(
-                            threeMonthsLater.getMonth() + 3
-                        );
-
+                    // Handle one-time arrangements
+                    if (arrangement.recurrence_pattern === "one-time" || !arrangement.recurrence_pattern) {
+                        employeeData.data.push({
+                            id: arrangement.arrangement_id.toString(),
+                            startDate: startDate,
+                            endDate: endDate,
+                            occupancy: null,
+                            title: arrangement.location === 'home' ? 'WFH' : 'Office',
+                            subtitle: capitalizeFirstLetter(arrangement.type),
+                            description: arrangement.reason || 'No reason provided',
+                            bgColor: bgColor
+                        });
+                    }
+                    // Handle recurring arrangements
+                    else if (arrangement.recurrence_pattern) {
+                        const recurrenceEndDate = new Date(arrangement.end_date);
+                        let recurrenceDate = new Date(startDate);
                         let intervalDays;
+
                         if (arrangement.recurrence_pattern === "weekly") {
-                            intervalDays = 7; // Every week
-                        } else if (
-                            arrangement.recurrence_pattern === "bi-weekly"
-                        ) {
-                            intervalDays = 14; // Every two weeks
-                        } else if (
-                            arrangement.recurrence_pattern === "monthly"
-                        ) {
-                            intervalDays = 30; // Approximately every month (adjust if needed for exact month duration)
+                            intervalDays = 7;
+                        } else if (arrangement.recurrence_pattern === "bi-weekly") {
+                            intervalDays = 14;
+                        } else if (arrangement.recurrence_pattern === "monthly") {
+                            intervalDays = 30;
                         }
 
-                        // Repeat arrangement for the duration based on the recurrence pattern
-                        let recurrenceCount = 0; // To ensure unique IDs
-                        while (recurrenceStartDate < threeMonthsLater) {
-                            if (arrangement.recurrence_pattern === "monthly") {
-                                recurrenceStartDate.setMonth(
-                                    recurrenceStartDate.getMonth() + 1
-                                );
-                                recurrenceEndDate.setMonth(
-                                    recurrenceEndDate.getMonth() + 1
-                                );
-                            } else {
-                                recurrenceStartDate.setDate(
-                                    recurrenceStartDate.getDate() + intervalDays
-                                );
-                                recurrenceEndDate.setDate(
-                                    recurrenceEndDate.getDate() + intervalDays
-                                );
-                            }
+                        let recurrenceCount = 0;
+                        while (recurrenceDate <= recurrenceEndDate) {
+                            employeeData.data.push({
+                                id: `${arrangement.arrangement_id}-${recurrenceCount}`,
+                                startDate: new Date(recurrenceDate),
+                                endDate: new Date(recurrenceDate.getTime() + durationHours * 60 * 60 * 1000),
+                                occupancy: null,
+                                title: arrangement.location === 'home' ? 'WFH' : 'Office',
+                                subtitle: capitalizeFirstLetter(arrangement.type),
+                                description: arrangement.reason || 'No reason provided',
+                                bgColor: bgColor
+                            });
+                            recurrenceCount++;
 
-                            if (recurrenceStartDate < threeMonthsLater) {
-                                // Generate a unique ID for each recurring arrangement
-                                employeeData.data.push({
-                                    id: `${arrangement.arrangement_id}-${recurrenceCount}`, // Unique ID for each recurring arrangement
-                                    startDate: new Date(recurrenceStartDate),
-                                    endDate: new Date(recurrenceEndDate),
-                                    occupancy: null, // Set occupancy or default
-                                    title: arrangement.location === 'home' ? 'WFH' : 'Office',
-                                    subtitle: capitalizeFirstLetter(arrangement.type),
-                                    description: arrangement.reason || 'No reason provided',
-                                    bgColor: bgColor
-                                });
-                                recurrenceCount++; // Increment count for unique ID
+                            if (arrangement.recurrence_pattern === "monthly") {
+                                recurrenceDate.setMonth(recurrenceDate.getMonth() + 1);
+                            } else {
+                                recurrenceDate.setDate(recurrenceDate.getDate() + intervalDays);
                             }
                         }
                     }
@@ -141,29 +107,34 @@ export function transformEmployeeData(employees) {
             });
         }
 
-        // Return employee data with arrangements or empty data
         return employeeData;
     });
 }
 
-
+// Legend component
+const Legend = () => (
+    <div className="flex justify-center items-center mt-4">
+        <div className="flex space-x-4 items-center font-sans">
+            {[
+                { color: "#b5cbcc", label: "Full Day WFH" },
+                { color: "#cddeef", label: "AM WFH" },
+                { color: "#f3dbbe", label: "PM WFH" }
+            ].map(({ color, label }) => (
+                <div key={label} className="flex items-center space-x-2">
+                    <div className="w-5 h-5" style={{ backgroundColor: color }}></div>
+                    <span>{label}</span>
+                </div>
+            ))}
+        </div>
+    </div>
+);
 
 const GanttChart = ({ arrangements, isLoading }) => {
-    // Transform the employee data into the required format
-    console.log("Arrangement:", arrangements);
-
-    console.log("Arrangements Input Data:", arrangements);
-
     const transformedData = transformEmployeeData(arrangements);
-
-    // Log the transformed data to the console
-    console.log("Transformed Employee Data:", transformedData);
 
     return (
         <div>
-            <div
-                style={{ position: "relative", width: "auto", height: "600px" }}
-            >
+            <div style={{ position: "relative", width: "auto", height: "600px" }}>
                 <Scheduler
                     isLoading={isLoading}
                     data={transformedData}
@@ -177,34 +148,7 @@ const GanttChart = ({ arrangements, isLoading }) => {
                     }}
                 />
             </div>
-            <div className="flex justify-center items-center mt-4">
-                {/* Status Legend */}
-                <div className="flex space-x-4 items-center font-sans">
-                    {/* Full Day WFH */}
-                    <div className="flex items-center space-x-2">
-                        <div
-                            className="w-5 h-5"
-                            style={{ backgroundColor: "#b5cbcc" }}
-                        ></div>
-                        <span>Full Day WFH</span>
-                    </div>
-
-                    {/* AM WFH */}
-                    <div className="flex items-center space-x-2">
-                        <div
-                            className="w-5 h-5"
-                            style={{ backgroundColor: "#cddeef" }}
-                        ></div>
-                        <span>AM WFH</span>
-                    </div>
-
-                    {/* PM WFH */}
-                    <div className="flex items-center space-x-2">
-                        <div className="w-5 h-5 bg-yellow-500"></div>
-                        <span>PM WFH</span>
-                    </div>
-                </div>
-            </div>
+            <Legend />
         </div>
     );
 };
