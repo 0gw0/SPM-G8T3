@@ -118,7 +118,119 @@ const handler = async (req, user, employee) => {
     });
 };
 
+// PUT handler
+const putHandler = async (req, user, employee) => {
+    const supabase = createClient();
+
+    if (!supabase) {
+        console.error("Failed to create Supabase client");
+        return NextResponse.json(
+            { error: "Internal server error" },
+            { status: 500 }
+        );
+    }
+
+    const body = await req.json();
+    const { arrangement_id, status, comments } = body;
+
+    // Validate input
+    if (!arrangement_id || !status) {
+        return NextResponse.json(
+            { error: "Missing arrangement_id or status" },
+            { status: 400 }
+        );
+    }
+
+    // If status is 'rejected', comments are required
+    if (status === "rejected" && (!comments || comments.trim() === "")) {
+        return NextResponse.json(
+            { error: "Comments are required when rejecting an arrangement." },
+            { status: 400 }
+        );
+    }
+
+    // Fetch the arrangement to verify existence and manager authorization
+    const { data: arrangement, error: fetchError } = await supabase
+        .from("arrangement")
+        .select(
+            `
+            arrangement_id,
+            staff_id,
+            date,
+            start_date,
+            end_date,
+            recurrence_pattern,
+            type,
+            status,
+            location,
+            reason,
+            manager_id,
+            created_at,
+            comments,
+            employee:staff_id (
+                staff_id
+            )
+        `
+        )
+        .eq("arrangement_id", arrangement_id)
+        .single();
+
+    if (fetchError || !arrangement) {
+        console.error("Error fetching arrangement:", fetchError);
+        return NextResponse.json(
+            { error: "Arrangement not found" },
+            { status: 404 }
+        );
+    }
+
+    // Check if the current employee is the manager for this arrangement
+    if (arrangement.manager_id !== employee.staff_id) {
+        return NextResponse.json(
+            { error: "Not authorized to update this arrangement" },
+            { status: 403 }
+        );
+    }
+
+    // Ensure the arrangement is still pending
+    if (arrangement.status !== "pending") {
+        return NextResponse.json(
+            { error: "Only pending arrangements can be updated" },
+            { status: 400 }
+        );
+    }
+
+    // Prepare update data
+    const updateData = { status };
+
+    if (status === "rejected") {
+        updateData.comments = comments;
+    } else if (status === "approved") {
+        updateData.comments = null; // Clear comments if any
+    }
+
+    // Update the arrangement status and comments
+    const { data: updatedArrangement, error: updateError } = await supabase
+        .from("arrangement")
+        .update(updateData)
+        .eq("arrangement_id", arrangement_id)
+        .single();
+
+    if (updateError) {
+        console.error("Error updating arrangement:", updateError);
+        return NextResponse.json(
+            { error: "Failed to update arrangement" },
+            { status: 500 }
+        );
+    }
+
+    return NextResponse.json({
+        message: `Arrangement ${arrangement_id} status updated to ${status}`,
+        data: updatedArrangement,
+    });
+};
+
 export const GET = checkApprovalPermission(handler);
+export const PUT = checkApprovalPermission(putHandler);
 
 /*
   Example output:
