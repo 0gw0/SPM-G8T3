@@ -84,6 +84,8 @@ export const POST = checkViewOwnPermission(async (req) => {
 				insertArrangements.push({
 					staff_id,
 					date,
+					start_date: date,
+					end_date: date,
 					recurrence_pattern: 'one-time',
 					type,
 					status: 'pending',
