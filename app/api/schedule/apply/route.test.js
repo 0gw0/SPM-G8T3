@@ -2,10 +2,8 @@ import { POST } from './route';
 import {GET} from './route';
 import { createClient } from '@/utils/supabase/server';
 import { NextRequest } from 'next/server';
-import { checkViewOwnPermission } from '@/utils/rolePermissions';
 import { handler as viewOwnHandler } from '../view-own/route.js';
-import * as APIModules from './route';
-import { stat } from 'selenium-webdriver/io';
+
 
 // Mock the Supabase client
 
@@ -29,7 +27,11 @@ console.error = jest.fn();
 
 describe('POST handler for WFH arrangements', () => {
     let mockRequest;
+    let mockRequest1;
+    let mockRequest2
     let mockFormData;
+    let mockFormData1;
+    let mockFormData2;
     let mockSupabaseClient;
 
     beforeEach(() => {
@@ -43,6 +45,10 @@ describe('POST handler for WFH arrangements', () => {
                         return 'adhoc';
                     case 'dates':
                         return JSON.stringify({ '2024-10-10': 'full-day' });
+                    case 'start date':
+                        return '2024-10-10'
+                    case 'end date':
+                        return '2024-10-17'
                     case 'reason':
                         return 'Medical';
                     default:
@@ -59,6 +65,66 @@ describe('POST handler for WFH arrangements', () => {
             })
         });
         mockRequest.formData = jest.fn().mockResolvedValue(mockFormData);
+
+        mockFormData1 = {
+            get: jest.fn((key) => {
+                switch(key) {
+                    case 'arrangementType':
+                        return 'recurring';
+                    case 'dates':
+                        return JSON.stringify({ '2024-10-10': 'full-day' });
+                    case 'start_date':
+                        return '2024-10-10'
+                    case 'end_date':
+                        return '2024-10-17'
+                    case 'recurrence_pattern':
+                        return 'weekly';
+                    case 'type':
+                        return 'full-day';
+                    case 'reason':
+                        return 'Medical';
+                    default:
+                        return null;
+                }
+            })
+        };
+
+        // Setup mock request - simulated request object containing form data and authorisation header
+        mockRequest1 = new NextRequest('https://example.com/api/schedule/apply', {
+            method: 'POST',
+            headers: new Headers({ 
+                Authorization: 'Bearer mock-token' 
+            })
+        });
+        mockRequest1.formData = jest.fn().mockResolvedValue(mockFormData1);
+
+        mockFormData2 = {
+            get: jest.fn((key) => {
+                switch(key) {
+                    case 'arrangementType':
+                        return 'adhoc';
+                    case 'dates':
+                        return JSON.stringify({ '2024-10-10': 'half-day' });
+                    case 'start date':
+                        return '2024-10-10'
+                    case 'end date':
+                        return '2024-10-17'
+                    case 'reason':
+                        return 'Medical';
+                    default:
+                        return null;
+                }
+            })
+        };
+
+        // Setup mock request - simulated request object containing form data and authorisation header
+        mockRequest2 = new NextRequest('https://example.com/api/schedule/apply', {
+            method: 'POST',
+            headers: new Headers({ 
+                Authorization: 'Bearer mock-token' 
+            })
+        });
+        mockRequest2.formData = jest.fn().mockResolvedValue(mockFormData2);
 
         // Setup Supabase client mock with proper error handling
         // simulates mocked client that returns a successful response from the database
@@ -91,12 +157,16 @@ describe('POST handler for WFH arrangements', () => {
             }
         };
     // Mock viewOwnHandler to return a successful response for updated arrangements
-    const mockArrangements = [{ arrangement_id: '456' }];
+    const mockArrangements = { data: [{ arrangement_id: '456' }] };
     jest.mocked(viewOwnHandler).mockResolvedValue(
-        new Response(JSON.stringify(mockArrangements), { status: 200 })
+        new Response(JSON.stringify(mockArrangements), { 
+            status: 200 ,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        }),
+
     );
-        
-        
         jest.mocked(createClient).mockReturnValue(mockSupabaseClient);
     });
 
@@ -107,7 +177,7 @@ describe('POST handler for WFH arrangements', () => {
         console.error = originalConsoleError;
     });
 
-    it('successfully creates an adhoc arrangement and returns 200 status', async () => {
+    it('successfully creates an adhoc full day arrangement and returns 200 status', async () => {
         //mock in the event of successful update
         jest.mock('./route', () => ({
             POST: jest.fn().mockImplementation(() => {
@@ -127,10 +197,50 @@ describe('POST handler for WFH arrangements', () => {
         expect(response.status).toBe(200); 
         const responseData = await response.json();
         expect(responseData.message).toBe("Application successful"); 
-
-
-
     });
+
+    it('successfully creates a recurring full day arrangement and returns 200 status', async () => {
+        //mock in the event of successful update
+        jest.mock('./route', () => ({
+            POST: jest.fn().mockImplementation(() => {
+                return Promise.resolve(
+                    new Response(
+                        JSON.stringify({
+                            message: 'Application successful',
+                            arrangements: [{ arrangement_id: '456' }]
+                        }),
+                        { status: 200 }
+                    )
+                );
+            })
+        }));
+        const response = await POST(mockRequest1);
+        expect(response.status).toBe(200); 
+        const responseData = await response.json();
+        expect(responseData.message).toBe("Application successful"); 
+    });
+
+    it('successfully creates an adhoc half-day arrangement and returns 200 status', async () => {
+        //mock in the event of successful update
+        jest.mock('./route', () => ({
+            POST: jest.fn().mockImplementation(() => {
+                return Promise.resolve(
+                    new Response(
+                        JSON.stringify({
+                            message: 'Application successful',
+                            arrangements: [{ arrangement_id: '456' }]
+                        }),
+                        { status: 200 }
+                    )
+                );
+            })
+        }));
+        const response = await POST(mockRequest2);
+        expect(response.status).toBe(200); 
+        const responseData = await response.json();
+        expect(responseData.message).toBe("Application successful"); 
+    });
+    
 
     it('returns 403 when token is missing', async () => {
         mockRequest = new NextRequest('https://example.com/api/schedule/apply', {

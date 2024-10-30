@@ -1,3 +1,4 @@
+jest.setTimeout(5000);
 import { NextResponse, NextRequest } from 'next/server';
 import { handler as viewOwnHandler } from '../view-own/route.js';
 import { checkViewOwnPermission } from '@/utils/rolePermissions';
@@ -77,6 +78,7 @@ export const POST = checkViewOwnPermission(async (req) => {
 
 		if (arrangementType === 'adhoc') {
 			// Process ad-hoc arrangements
+			console.log('Processing ad-hoc arrangement');
 			const dates = JSON.parse(formData.get('dates'));
 			const reason = formData.get('reason');
 
@@ -95,6 +97,7 @@ export const POST = checkViewOwnPermission(async (req) => {
 				});
 			}
 		} else if (arrangementType === 'recurring') {
+			console.log('Processing recurring arrangement');
 			try {
 				const start_date = formData.get('start_date');
 				const end_date = formData.get('end_date');
@@ -108,6 +111,8 @@ export const POST = checkViewOwnPermission(async (req) => {
 					recurrence_pattern
 				);
 
+				console.log('Recurring dates:', recurringDates);
+
 				const { data: existingArrangements, error: fetchError } =
 					await supabase
 						.from('arrangement')
@@ -116,17 +121,24 @@ export const POST = checkViewOwnPermission(async (req) => {
 						.eq('recurrence_pattern', 'one-time')
 						.in('date', recurringDates);
 
+				console.log("Existing arrangements: ",existingArrangements)
+
 				if (fetchError) {
 					throw new Error(
 						`Failed to fetch existing arrangements: ${fetchError.message}`
 					);
+				}else{
+					console.log("No error fetching existing arrangements")
 				}
 
-				arrangementsToDelete = existingArrangements
-					.filter((existing) =>
-						doArrangementsConflict(existing.type, type)
-					)
-					.map((arr) => arr.arrangement_id);
+
+				console.log("Existing arrangements: ", existingArrangements)
+				arrangementsToDelete = (existingArrangements || [])
+				.filter((existing) => doArrangementsConflict(existing.type, type))
+				.map((arr) => arr.arrangement_id);
+				console.log("is this still running?")
+			
+
 
 				if (arrangementsToDelete.length > 0) {
 					const { error: deleteError } = await supabase
@@ -140,6 +152,8 @@ export const POST = checkViewOwnPermission(async (req) => {
 						);
 					}
 				}
+				console.log("Arrangements to delete: ", arrangementsToDelete)
+
 
 				insertArrangements.push({
 					staff_id,
@@ -153,6 +167,9 @@ export const POST = checkViewOwnPermission(async (req) => {
 					reason,
 					manager_id: employeeData.reporting_manager,
 				});
+
+				console.log('Recurring dates:', recurringDates);
+				console.log("Inserting arrangements", insertArrangements)
 			} catch (recurringError) {
 				console.error(
 					'Error processing recurring arrangement:',
@@ -231,8 +248,13 @@ export const GET = checkViewOwnPermission(async (req) => {
 		headers: req.headers,
 	});
 
+	console.log('GET request:', getRequest);
+	console.log("Hi")
+
 	const response = await viewOwnHandler(getRequest);
 	const result = await response.json();
+
+	console.log('GET response:', response);
 
 	if (!response.ok) {
 		console.error('Error fetching arrangements:', result.error);
