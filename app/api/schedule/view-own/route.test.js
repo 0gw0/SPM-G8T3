@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "../../../../utils/supabase/server";
-import { checkViewOwnPermission } from "../../../../utils/rolePermissions";
 
 // Mocking the external dependencies so we don't hit real external systems
 jest.mock("../../../../utils/supabase/server", () => ({

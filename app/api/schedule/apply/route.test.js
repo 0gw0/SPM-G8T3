@@ -1,5 +1,5 @@
-import { POST } from './route';
-import {GET} from './route';
+import { POST } from "./route";
+import {GET} from "./route";
 import { createClient } from '@/utils/supabase/server';
 import { NextRequest } from 'next/server';
 import { handler as viewOwnHandler } from '../view-own/route.js';
