@@ -47,7 +47,7 @@ describe('Authentication Actions', () => {
 
   describe('login', () => {
     // Test case 1: Successful login
-    it('should successfully log in a user and redirect to home', async () => {
+    it('successfully log in a user and redirect to home', async () => {
       // Arrange
       const email = 'test@example.com';
       const password = 'password123';
@@ -77,7 +77,7 @@ describe('Authentication Actions', () => {
     });
 
     // Test case 2: Failed login with invalid credentials
-    it('should redirect to error page on invalid credentials', async () => {
+    it('redirect to error page on invalid credentials', async () => {
       // Arrange
       const email = 'test@example.com';
       const wrongPassword = 'wrongpassword';

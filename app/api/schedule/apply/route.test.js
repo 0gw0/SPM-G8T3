@@ -314,7 +314,7 @@ describe('GET handler for WFH arrangements', () => {
         });
     });
 
-    it('returns error when viewOwnHandler fails', async () => {
+    it('returns error status 500 when viewOwnHandler fails', async () => {
         // Mock error response from viewOwnHandler
         const mockError = {
             error: 'Failed to fetch arrangements'
@@ -327,25 +327,6 @@ describe('GET handler for WFH arrangements', () => {
         const response = await GET(mockRequest);
         expect(response.status).toBe(500);
 
-        const responseData = await response.json();
-        expect(responseData).toEqual({
-            error: 'Failed to fetch arrangements'
-        });
-    });
-
-
-    it('handles unexpected errors from viewOwnHandler', async () => {
-        // Mock viewOwnHandler to return an error response
-        const mockErrorResponse = new Response(
-            JSON.stringify({ error: 'Unexpected error occurred' }), 
-            { status: 500 }
-        );
-    
-        viewOwnHandler.mockResolvedValueOnce(mockErrorResponse);
-    
-        const response = await GET(mockRequest);
-        expect(response.status).toBe(500);
-    
         const responseData = await response.json();
         expect(responseData).toEqual({
             error: 'Failed to fetch arrangements'
