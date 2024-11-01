@@ -127,12 +127,9 @@ export const POST = checkViewOwnPermission(async (req) => {
 					console.log("No error fetching existing arrangements")
 				}
 
-
 				arrangementsToDelete = (existingArrangements || [])
 				.filter((existing) => doArrangementsConflict(existing.type, type))
 				.map((arr) => arr.arrangement_id);
-			
-
 
 				if (arrangementsToDelete.length > 0) {
 					const { error: deleteError } = await supabase
