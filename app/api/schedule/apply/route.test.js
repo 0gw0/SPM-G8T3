@@ -1,9 +1,10 @@
 import { POST } from "./route";
 import {GET} from "./route";
 import { createClient } from '@/utils/supabase/server';
-import { NextRequest } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { handler as viewOwnHandler } from '../view-own/route.js';
-
+import { generateRecurringDates } from "@/utils/dates";
+import {doArrangementsConflict} from './route';
 
 // Mock the Supabase client
 
@@ -240,6 +241,7 @@ describe('POST handler for WFH arrangements', () => {
         const responseData = await response.json();
         expect(responseData.message).toBe("Application successful"); 
     });
+
     
 
     it('returns 403 when token is missing', async () => {
@@ -333,4 +335,214 @@ describe('GET handler for WFH arrangements', () => {
         });
     });
     
+});
+
+describe('Utility Functions', () => {
+    test('doArrangementsConflict should correctly identify conflicts', () => {
+
+      // Test all combinations
+      expect(doArrangementsConflict('full-day', 'morning')).toBe(true);
+      expect(doArrangementsConflict('morning', 'full-day')).toBe(true);
+      expect(doArrangementsConflict('morning', 'morning')).toBe(true);
+      expect(doArrangementsConflict('afternoon', 'afternoon')).toBe(true);
+      expect(doArrangementsConflict('morning', 'afternoon')).toBe(false);
+      expect(doArrangementsConflict('afternoon', 'morning')).toBe(false);
+    });
+  });
+
+
+
+describe('Endpoint Response Handling', () => {
+    let mockRequest;
+    let mockSupabaseClient;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+
+        // Mock NextResponse.json
+        NextResponse.json = jest.fn();
+
+        // Mock request
+        mockRequest = new NextRequest('http://localhost:3000/api/test', {
+            method: 'POST',
+            headers: new Headers({
+                'Authorization': 'Bearer fake-token'
+            })
+        });
+        mockRequest.formData = jest.fn();
+        mockRequest.headers.get = jest.fn();
+
+        // Mock Supabase client
+        mockSupabaseClient = {
+            auth: {
+                getUser: jest.fn()
+            },
+            from: jest.fn()
+        };
+        createClient.mockReturnValue(mockSupabaseClient);
+    });
+
+    describe('Authentication Responses', () => {
+        it('should return 403 response for missing token', async () => {
+            mockRequest.headers.get.mockReturnValue(null);
+
+            await POST(mockRequest);
+
+            expect(NextResponse.json).toHaveBeenCalledWith(
+                { error: 'Missing or invalid token' },
+                { status: 403 }
+            );
+        });
+
+        it('should return 500 response for invalid user session', async () => {
+            mockRequest.headers.get.mockReturnValue('Bearer fake-token');
+            mockSupabaseClient.auth.getUser.mockResolvedValue({
+                data: { user: null },
+                error: new Error('Invalid session')
+            });
+
+            await POST(mockRequest);
+
+            expect(NextResponse.json).toHaveBeenCalledWith(
+                {   details: "Cannot read properties of null (reading 'user_metadata')",
+                    error: 'Internal server error' 
+                },
+                { status: 500 }
+            );
+        });
+    });
+
+    describe('User Data Responses', () => {
+        it('should return 400 response for missing staff ID', async () => {
+            mockRequest.headers.get.mockReturnValue('Bearer fake-token');
+            mockSupabaseClient.auth.getUser.mockResolvedValue({
+                data: { 
+                    user: { 
+                        user_metadata: {} 
+                    }
+                },
+                error: null
+            });
+
+            await POST(mockRequest);
+
+            expect(NextResponse.json).toHaveBeenCalledWith(
+                { error: 'Staff ID not found in user metadata' },
+                { status: 400 }
+            );
+        });
+
+        it('should return 400 response for missing reporting manager', async () => {
+            mockRequest.headers.get.mockReturnValue('Bearer fake-token');
+            mockSupabaseClient.auth.getUser.mockResolvedValue({
+                data: { 
+                    user: { 
+                        user_metadata: { 
+                            staff_id: '123' 
+                        } 
+                    }
+                },
+                error: null
+            });
+
+            mockSupabaseClient.from.mockReturnValue({
+                select: jest.fn().mockReturnValue({
+                    eq: jest.fn().mockReturnValue({
+                        single: jest.fn().mockResolvedValue({
+                            data: { reporting_manager: null },
+                            error: null
+                        })
+                    })
+                })
+            });
+
+            await POST(mockRequest);
+
+            expect(NextResponse.json).toHaveBeenCalledWith(
+                { error: 'No reporting manager assigned' },
+                { status: 400 }
+            );
+        });
+    });
+
+    describe('Arrangement Type Responses', () => {
+        it('should return 400 response for invalid arrangement type', async () => {
+            // Setup valid user authentication
+            mockRequest.headers.get.mockReturnValue('Bearer fake-token');
+            mockSupabaseClient.auth.getUser.mockResolvedValue({
+                data: { 
+                    user: { 
+                        user_metadata: { 
+                            staff_id: '123' 
+                        } 
+                    }
+                },
+                error: null
+            });
+
+            // Setup valid employee data
+            mockSupabaseClient.from.mockReturnValue({
+                select: jest.fn().mockReturnValue({
+                    eq: jest.fn().mockReturnValue({
+                        single: jest.fn().mockResolvedValue({
+                            data: { reporting_manager: '456' },
+                            error: null
+                        })
+                    })
+                })
+            });
+
+            // Mock form data with invalid arrangement type
+            mockRequest.formData.mockResolvedValue(new Map([
+                ['arrangementType', 'invalid-type']
+            ]));
+
+            await POST(mockRequest);
+
+            expect(NextResponse.json).toHaveBeenCalledWith(
+                { error: 'Invalid arrangement type' },
+                { status: 400 }
+            );
+        });
+    });
+
+    
+
+    describe('GET Endpoint Responses', () => {
+        it('should properly handle successful GET responses', async () => {
+            const mockResult = {
+                message: 'Success',
+                data: [{ id: 1 }]
+            };
+
+            viewOwnHandler.mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve(mockResult)
+            });
+
+            await GET(mockRequest);
+
+            expect(NextResponse.json).toHaveBeenCalledWith({
+                message: mockResult.message,
+                data: mockResult.data
+            });
+        });
+
+        it('should handle failed GET responses', async () => {
+            viewOwnHandler.mockResolvedValue({
+                ok: false,
+                json: () => Promise.resolve({
+                    error: 'Failed to fetch'
+                }),
+                status: 500
+            });
+
+            await GET(mockRequest);
+
+            expect(NextResponse.json).toHaveBeenCalledWith(
+                { error: 'Failed to fetch arrangements' },
+                { status: 500 }
+            );
+        });
+    });
 });

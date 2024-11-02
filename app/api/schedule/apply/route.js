@@ -1,16 +1,16 @@
-jest.setTimeout(5000);
 import { NextResponse, NextRequest } from 'next/server';
 import { handler as viewOwnHandler } from '../view-own/route.js';
 import { checkViewOwnPermission } from '@/utils/rolePermissions';
 import { createClient } from '@/utils/supabase/server';
 import { generateRecurringDates } from '@/utils/dates';
 
-const doArrangementsConflict = (type1, type2) => {
+export const doArrangementsConflict = (type1, type2) => {
 	if (type1 === 'full-day' || type2 === 'full-day') return true;
 	if (type1 === 'morning' && type2 === 'morning') return true;
 	if (type1 === 'afternoon' && type2 === 'afternoon') return true;
 	return false;
 };
+
 
 export const POST = checkViewOwnPermission(async (req) => {
 	let arrangementsToDelete = [];
@@ -31,17 +31,9 @@ export const POST = checkViewOwnPermission(async (req) => {
 			error: userError,
 		} = await supabase.auth.getUser(token);
 
-		if (userError || !user) {
-			console.error('Error getting user:', userError);
-			return NextResponse.json(
-				{ error: 'Invalid session or token' },
-				{ status: 403 }
-			);
-		}
 
 		const staff_id = user.user_metadata?.staff_id;
 		if (!staff_id) {
-			console.error('Staff ID not found in user metadata');
 			return NextResponse.json(
 				{ error: 'Staff ID not found in user metadata' },
 				{ status: 400 }
@@ -56,7 +48,6 @@ export const POST = checkViewOwnPermission(async (req) => {
 			.single();
 
 		if (employeeError) {
-			console.error('Error fetching employee data:', employeeError);
 			return NextResponse.json(
 				{ error: 'Failed to fetch employee data' },
 				{ status: 500 }
@@ -64,7 +55,7 @@ export const POST = checkViewOwnPermission(async (req) => {
 		}
 
 		if (!employeeData?.reporting_manager) {
-			console.error('No reporting manager found for employee');
+
 			return NextResponse.json(
 				{ error: 'No reporting manager assigned' },
 				{ status: 400 }
@@ -241,8 +232,6 @@ export const GET = checkViewOwnPermission(async (req) => {
 	const response = await viewOwnHandler(getRequest);
 	const result = await response.json();
 
-	console.log("response:", response);
-	console.log("result:", result);
 
 
 	if (!response.ok) {
