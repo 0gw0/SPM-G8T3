@@ -144,6 +144,7 @@ const handler = async (req, user, employee, isManagerOrDirector) => {
                 employee
             );
 
+
             return NextResponse.json({
                 teamMemberArrangements: teamArrangements,
                 role: employee.role,

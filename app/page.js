@@ -52,7 +52,7 @@ export default function Page() {
                     }
                 );
 
-                if (!response.ok) throw new Error('Failed to fetch arrangements');
+                if (!response.ok) throw new Error('Failed to fetch arrangements')
                 const result = await response.json();
                 setArrangements(result.data);
             } catch (err) {

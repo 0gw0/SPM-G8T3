@@ -5,6 +5,12 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import "react-tabs/style/react-tabs.css";
 import GanttChart from "../../components/ganttChart";
 
+const LoadingSpinner = () => (
+    <div className="flex justify-center items-center h-24">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+    </div>
+);
+
 const ViewTeamPage = () => {
     const [managedTeamArrangements, setManagedTeamArrangements] = useState([]);
     const [
@@ -95,14 +101,15 @@ const ViewTeamPage = () => {
         );
     };
 
-    if (loading) return <div>Loading...</div>;
-    if (error)
+    if (loading)
         return (
-            <div className="text-red-500">
-                <h2>Error loading schedules</h2>
-                <p>{error}</p>
+            <div className="text-center mt-8">
+                <LoadingSpinner />
             </div>
         );
+
+   if (error)
+       return <div className="text-center mt-8 text-red-500">{error}</div>;
 
     // For MD, show single view
     if (isMD) {

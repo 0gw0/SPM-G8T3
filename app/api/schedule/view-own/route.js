@@ -2,6 +2,7 @@ import { checkViewOwnPermission } from "@/utils/rolePermissions";
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
+
 export const handler = async (req) => {
     const supabase = createClient();
 
@@ -67,8 +68,7 @@ export const handler = async (req) => {
             { status: 500 }
         );
     }
-
-    // Process the arrangements data
+    
     const processedArrangements = arrangements.map((arr) => ({
         ...arr,
         employeeName: `${arr.employee.staff_fname} ${arr.employee.staff_lname}`,

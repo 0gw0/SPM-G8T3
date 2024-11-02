@@ -1,19 +1,21 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const Navbar = () => {
     const pathname = usePathname();
 
     // Add your routes here
     const routes = [
-		{ path: '/', name: 'My Arrangements' },
-		{ path: '/apply', name: 'Arrangement Managment' },
-		{ path: '/view-team', name: 'My Team' },
-		{ path: '/view-org', name: 'Organisation' },
-	];
+        { path: "/", name: "My Arrangements" },
+        { path: "/apply", name: "Arrangement Management" },
+        { path: "/view-team", name: "My Team" },
+        { path: "/view-org", name: "Organisation" },
+        { path: "/approval", name: "Approve/Reject" },
+        { path: "/withdrawals", name: "Pending Withdrawals " },
+    ];
 
     return (
         <nav className="bg-gray-800 p-4">
@@ -27,7 +29,7 @@ const Navbar = () => {
                             <Link
                                 href={route.path}
                                 className={`text-white hover:text-gray-300 ${
-                                    pathname === route.path ? 'font-bold' : ''
+                                    pathname === route.path ? "font-bold" : ""
                                 }`}
                             >
                                 {route.name}
