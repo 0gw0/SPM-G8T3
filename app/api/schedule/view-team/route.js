@@ -12,7 +12,6 @@ const handler = async (req, user, employee, isManagerOrDirector) => {
 
     try {
         if (isManagerOrDirector) {
-            console.log("Fetching arrangements for Director or Manager...");
 
             // Fetch managed team employees
             const { data: managerEmployees, error: managerEmpError } =
@@ -108,7 +107,6 @@ const handler = async (req, user, employee, isManagerOrDirector) => {
         }
         // role 2 employees
         else {
-            console.log("Fetching arrangements for Employee...");
 
             // Fetch the reporting manager's information
             const { data: reportingManager, error: reportingManagerError } =
@@ -160,7 +158,6 @@ const handler = async (req, user, employee, isManagerOrDirector) => {
                 employee
             );
 
-            console.log("Team Arrangements for Employee:", teamArrangements);
 
             return NextResponse.json({
                 teamMemberArrangements: teamArrangements,

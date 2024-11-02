@@ -104,11 +104,8 @@ export const checkViewOwnPermission = (handler) => async (req) => {
 export const checkViewTeamPermission = (handler) => async (req) => {
     return checkRolePermission(async (req, user, employee) => {
         // Log the user metadata to ensure role is being passed correctly
-        console.log("User metadata:", user.user_metadata);
-        console.log("Employee:", employee);
 
         const role = employee.role;
-        console.log("Role received:", role);
 
         // Check permissions based on role
         if (role === 1 || role === 3) {

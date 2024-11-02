@@ -48,7 +48,6 @@ export const generateRecurringDates = (
  * @returns {Array} Processed arrangements
  */
 export const processArrangements = (arrangementsData) => {
-	console.log("arrangementsData", arrangementsData);
 	return arrangementsData.flatMap((arrangement) => {
 		if (arrangement.recurrence_pattern === 'one-time') {
 			return [arrangement];

@@ -68,25 +68,7 @@ export const handler = async (req) => {
             { status: 500 }
         );
     }
-
-    // console.log("Arrangements:", arrangements);
-
-    // let updatedArrangements = [];
-
-    // // Process the arrangements data
-    // for (const arrangement of arrangements) {
-    //     if (arrangement.recurrence_pattern === "one-time") {
-    //         updatedArrangements.push(arrangement);
-    //     } else {
-    //         const recurringDates = processArrangements(arrangement);
-    //         updatedArrangements.push(...recurringDates);
-    //     }
-    // }
-
-    // console.log("Updated Arrangements:", updatedArrangements);
-
-
-    // Process the arrangements data
+    
     const processedArrangements = arrangements.map((arr) => ({
         ...arr,
         employeeName: `${arr.employee.staff_fname} ${arr.employee.staff_lname}`,
