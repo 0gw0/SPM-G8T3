@@ -13,6 +13,7 @@ const Navbar = () => {
         { path: "/apply", name: "Arrangement Management" },
         { path: "/view-team", name: "My Team" },
         { path: "/view-org", name: "Organisation" },
+        { path: "/approval", name: "Approve/Reject" },
     ];
 
     return (
