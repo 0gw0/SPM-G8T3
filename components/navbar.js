@@ -14,6 +14,7 @@ const Navbar = () => {
         { path: "/view-team", name: "My Team" },
         { path: "/view-org", name: "Organisation" },
         { path: "/approval", name: "Approve/Reject" },
+        { path: "/withdrawals", name: "Pending Withdrawals " },
     ];
 
     return (

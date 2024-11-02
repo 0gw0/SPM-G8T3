@@ -139,3 +139,22 @@ export const checkApprovalPermission = (handler) => async (req) => {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     })(req);
 };
+
+export const checkApproveWithdrawalPermission = (handler) => async (req) => {
+    return checkAllReportingManagers(async (req, user, employee, managers) => {
+        // Check if the user is one of the reporting managers
+        const isManager = managers.some(
+            (manager) =>
+                manager.reporting_manager === user.user_metadata.staff_id
+        );
+
+        if (isManager) {
+            // Allow access if the user is in the managers list
+            return handler(req, user, employee, managers);
+        }
+
+        // If the user is not a manager, return forbidden
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    })(req);
+};
+
