@@ -2,6 +2,7 @@ import { checkViewOwnPermission } from "@/utils/rolePermissions";
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
+
 export const handler = async (req) => {
     const supabase = createClient();
 
@@ -67,6 +68,23 @@ export const handler = async (req) => {
             { status: 500 }
         );
     }
+
+    // console.log("Arrangements:", arrangements);
+
+    // let updatedArrangements = [];
+
+    // // Process the arrangements data
+    // for (const arrangement of arrangements) {
+    //     if (arrangement.recurrence_pattern === "one-time") {
+    //         updatedArrangements.push(arrangement);
+    //     } else {
+    //         const recurringDates = processArrangements(arrangement);
+    //         updatedArrangements.push(...recurringDates);
+    //     }
+    // }
+
+    // console.log("Updated Arrangements:", updatedArrangements);
+
 
     // Process the arrangements data
     const processedArrangements = arrangements.map((arr) => ({
