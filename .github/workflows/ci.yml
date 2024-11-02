@@ -25,5 +25,8 @@ jobs:
       - name: Install dependencies
         run: npm install  # Install all project dependencies
 
-      - name: Run tests
-        run: npm test -- --testMatch "**/app/**/*.test.js"  # Run all route test files
+      - name: Run unit tests
+        run: npm test -- --testMatch "**/app/**/*.test.js"  # Run all unit test files
+
+      - name: Run integration tests
+        run: npm test -- --testMatch "**/_tests_/integration_testing/**/*.test.js"  # Run all route test files
