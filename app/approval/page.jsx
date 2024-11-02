@@ -58,6 +58,7 @@ export default function TeamArrangement() {
 			}
 
 			const result = await response.json();
+			console.log('Fetched arrangements:', result);
 			setArrangements(result.data);
 			setLoading(false);
 		}

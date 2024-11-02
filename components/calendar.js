@@ -2,7 +2,6 @@ import React, { useRef } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { processArrangements } from '../utils/dates';
 
 const Calendar = ({ arrangements, onDatesChange }) => {
 	const getDateString = (date) => {
@@ -21,70 +20,37 @@ const Calendar = ({ arrangements, onDatesChange }) => {
 	);
 	const maxDateStr = getDateString(maxDate);
 
-	const existingDatesSet = new Set(		
-		arrangements	
-			.filter(
-				(arr) =>
-					arr.status !== 'withdrawal_approved' &&
-					arr.status !== 'pending_withdrawal'
-	)
-	.map((arr) => arr.date));
+	const existingDatesSet = new Set(arrangements.map((arr) => arr.date));
 
 	const clickTimeout = useRef(null);
 	const isSelecting = useRef(false);
 
-	// Helper function to get event order based on type
-	const getEventOrder = (type) => {
-		switch (type) {
-			case 'morning':
-				return 1;
-			case 'afternoon':
-				return 2;
-			case 'full-day':
-				return 0;
+
+
+	const arrangementEvents = arrangements.map((arrangement) => {
+		let classNames;
+
+		switch (arrangement.status) {
+			case 'approved':
+				classNames = ['bg-green-500', 'text-white'];
+				break;
+			case 'rejected':
+				classNames = ['bg-red-500', 'text-white'];
+				break;
+			case 'pending':
 			default:
-				return 3;
+				classNames = ['bg-yellow-400', 'text-black'];
+				break;
 		}
-	};
 
-
-	let processedArrangements = processArrangements(arrangements);
-
-	const arrangementEvents = processedArrangements
-		.map((arrangement) => {
-			let classNames;
-
-			if (
-				arrangement.status === 'withdrawal_approved' ||
-				arrangement.status === 'pending_withdrawal'
-			) {
-				return null;
-			}
-
-			switch (arrangement.status) {
-				case 'approved':
-					classNames = ['bg-green-500', 'text-white'];
-					break;
-				case 'rejected':
-					classNames = ['bg-red-500', 'text-white'];
-					break;
-				case 'pending':
-				default:
-					classNames = ['bg-yellow-400', 'text-black'];
-					break;
-			}
-
-			return {
-				title: arrangement.type,
-				start: arrangement.date,
-				allDay: true,
-				classNames,
-				extendedProps: { status: arrangement.status },
-				order: getEventOrder(arrangement.type),
-				display: 'block',
-			};
-		})
-		.filter((event) => event !== null);
+		return {
+			title: arrangement.type,
+			start: arrangement.date,
+			allDay: true,
+			classNames,
+			extendedProps: { status: arrangement.status },
+		};
+	});
 
 	const dayCellClassNames = (arg) => {
 		const cellDateStr = getDateString(arg.date);

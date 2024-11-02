@@ -96,8 +96,6 @@ const ApprovalTable = ({ arrangements: initialArrangements, isLoading }) => {
     }
 
     const handleApprove = async (arrangement) => {
-        console.log("Employee ID:", arrangement.staff_id); // Log employee ID
-        console.log("Arrangement ID:", arrangement.arrangement_id); // Log arrangement ID
         setIsProcessing(true);
         try {
             const response = await fetch("/api/schedule/approval", {
@@ -119,9 +117,6 @@ const ApprovalTable = ({ arrangements: initialArrangements, isLoading }) => {
                 alert(
                     `Arrangement for ${arrangement.employeeName} has been approved.`
                 );
-                await sendEmailNotificationApprove(arrangement.staff_id, [
-                    arrangement.arrangement_id,
-                ]);
             } else {
                 console.error("Error approving arrangement:", data.error);
                 alert(`Error: ${data.error}`);
@@ -163,11 +158,6 @@ const ApprovalTable = ({ arrangements: initialArrangements, isLoading }) => {
                 alert(
                     `Arrangement for ${arrangement.employeeName} has been rejected.`
                 );
-                await sendEmailNotificationReject(
-                    arrangement.staff_id,
-                    [arrangement.arrangement_id],
-                    rejectionReason
-                );
             } else {
                 console.error("Error rejecting arrangement:", data.error);
                 alert(`Error: ${data.error}`);
@@ -182,75 +172,6 @@ const ApprovalTable = ({ arrangements: initialArrangements, isLoading }) => {
         }
         // console.log("Rejected arrangement:", arrangement);
         // console.log("Rejection reason:", rejectionReason);
-    };
-
-    const sendEmailNotificationApprove = async (employee_id, arrangementid) => {
-        try {
-            // For adhoc arrangements, send email for each arrangement
-            for (const arrangement_id of arrangementid) {
-                let emailData = {
-                    type: "statusUpdate",
-                    employee_id,
-                    arrangement_id,
-                    status: "approved",
-                };
-
-                const response = await fetch("/api/send-email", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(emailData),
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(
-                        errorData.error || "Failed to send email notification"
-                    );
-                }
-            }
-        } catch (error) {
-            console.error("Error in sendEmailNotification:", error);
-            throw error;
-        }
-    };
-
-    const sendEmailNotificationReject = async (
-        employee_id,
-        arrangementid,
-        comments
-    ) => {
-        try {
-            // For adhoc arrangements, send email for each arrangement
-            for (const arrangement_id of arrangementid) {
-                let emailData = {
-                    type: "statusUpdate",
-                    employee_id,
-                    arrangement_id,
-                    status: "rejected",
-                    comments,
-                };
-
-                const response = await fetch("/api/send-email", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(emailData),
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(
-                        errorData.error || "Failed to send email notification"
-                    );
-                }
-            }
-        } catch (error) {
-            console.error("Error in sendEmailNotification:", error);
-            throw error;
-        }
     };
 
     const removeArrangement = (arrangementId) => {

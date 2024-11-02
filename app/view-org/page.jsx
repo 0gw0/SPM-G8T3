@@ -54,6 +54,7 @@ export default function OrganizationArrangements() {
             }
 
             const result = await response.json();
+            console.log("Fetched arrangements:", result); // Check the structure of result
             setArrangements(result.data); // Set the fetched arrangements to state
             setLoading(false);
         }
@@ -90,6 +91,7 @@ export default function OrganizationArrangements() {
                 {(() => {
                     // Step 1: Transform the employee data
                     const transformedData = transformEmployeeData(arrangements);
+                    console.log("Transformed Data NOW:", transformedData);
 
                     // Step 2: Get unique departments from transformed data
                     const uniqueDepartments = Array.from(new Set(transformedData.map(emp => emp.label.department)));
@@ -102,6 +104,7 @@ export default function OrganizationArrangements() {
 
                         // Filter employees for the current department
                         const deptEmployees = transformedData.filter(employee => employee.label.department === dept);
+                        console.log("Filtered deptEmployees:", deptEmployees);
 
                         // Calculate totals
                         const totalInDept = deptEmployees.length > 0 ? deptEmployees.length : 0;

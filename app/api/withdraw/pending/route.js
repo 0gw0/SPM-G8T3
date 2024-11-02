@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { checkApproveWithdrawalPermission } from "@/utils/rolePermissions";
 
-const withdrawHandler = async function GET(req) {
+export async function GET(req) {
 	try {
 		const supabase = createClient();
 
@@ -82,5 +81,3 @@ const withdrawHandler = async function GET(req) {
 		);
 	}
 }
-
-export const GET = checkApproveWithdrawalPermission(withdrawHandler);

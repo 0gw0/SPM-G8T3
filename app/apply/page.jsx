@@ -84,10 +84,7 @@ export default function OwnArrangements() {
 		<div className="container mx-auto mt-8 p-4">
 			<h1 className="text-2xl font-bold mb-4">Own Arrangements</h1>
 			<div className="overflow-x-auto">
-				<ArrangementTable 
-				arrangements={rawArrangements}
-				onWithdraw={fetchArrangements}
-				/>
+				<ArrangementTable arrangements={rawArrangements} />
 				<ArrangementTypeSelector
 					arrangementType={arrangementType}
 					setArrangementType={setArrangementType}

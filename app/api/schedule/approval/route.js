@@ -18,6 +18,8 @@ const handler = async (req, user, employee) => {
     const staff_id = employee.staff_id;
     const role = employee.role;
 
+    console.log("Role received:", role);
+    console.log("Employee ID:", staff_id);
 
     // Fetch all employees under the same reporting manager
     const { data: employees, error: empError } = await supabase
@@ -95,7 +97,6 @@ const handler = async (req, user, employee) => {
             manager_id: arr.manager_id,
             created_at: arr.created_at,
             comments: arr.comments,
-            staff_id: staffId,
         });
 
         return acc;

@@ -104,8 +104,11 @@ export const checkViewOwnPermission = (handler) => async (req) => {
 export const checkViewTeamPermission = (handler) => async (req) => {
     return checkRolePermission(async (req, user, employee) => {
         // Log the user metadata to ensure role is being passed correctly
+        console.log("User metadata:", user.user_metadata);
+        console.log("Employee:", employee);
 
         const role = employee.role;
+        console.log("Role received:", role);
 
         // Check permissions based on role
         if (role === 1 || role === 3) {
@@ -139,22 +142,3 @@ export const checkApprovalPermission = (handler) => async (req) => {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     })(req);
 };
-
-export const checkApproveWithdrawalPermission = (handler) => async (req) => {
-    return checkAllReportingManagers(async (req, user, employee, managers) => {
-        // Check if the user is one of the reporting managers
-        const isManager = managers.some(
-            (manager) =>
-                manager.reporting_manager === user.user_metadata.staff_id
-        );
-
-        if (isManager) {
-            // Allow access if the user is in the managers list
-            return handler(req, user, employee, managers);
-        }
-
-        // If the user is not a manager, return forbidden
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    })(req);
-};
-
