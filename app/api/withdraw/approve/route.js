@@ -21,7 +21,7 @@ export async function POST(req) {
 
 		if (userError || !user) {
 			return NextResponse.json(
-				{ error: 'Invalid session or token' },
+				{ error: 'Invalid session or token.' },
 				{ status: 403 }
 			);
 		}
@@ -29,7 +29,7 @@ export async function POST(req) {
 		const manager_id = user.user_metadata?.staff_id;
 		if (!manager_id) {
 			return NextResponse.json(
-				{ error: 'Staff ID not found in user metadata' },
+				{ error: 'Staff ID not found in user metadata.' },
 				{ status: 400 }
 			);
 		}
@@ -39,7 +39,7 @@ export async function POST(req) {
 
 		if (!arrangement_id || !action) {
 			return NextResponse.json(
-				{ error: 'Missing required fields' },
+				{ error: 'Required fields are missing.' },
 				{ status: 400 }
 			);
 		}
