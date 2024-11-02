@@ -26,7 +26,7 @@ export default function WithdrawalApprovalPage() {
 			}
 
 			// Fetch arrangements pending withdrawal for the manager
-			const response = await fetch('/api/withdraw/pending', {
+			const response = await fetch('/api/schedule/withdraw/pending', {
 				headers: {
 					Authorization: `Bearer ${sessionData.session.access_token}`,
 				},
