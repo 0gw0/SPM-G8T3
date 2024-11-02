@@ -97,6 +97,7 @@ const handler = async (req, user, employee) => {
             manager_id: arr.manager_id,
             created_at: arr.created_at,
             comments: arr.comments,
+            staff_id: staffId,
         });
 
         return acc;
