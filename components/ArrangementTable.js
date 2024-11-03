@@ -18,7 +18,7 @@ const ArrangementTable = ({ arrangements, onWithdraw }) => {
 
             const token = sessionData.session.access_token;
 
-            const response = await fetch("/api/withdraw", {
+            const response = await fetch("/api/schedule/withdraw", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

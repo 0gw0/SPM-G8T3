@@ -27,7 +27,7 @@ const WithdrawalApprovalTable = ({ arrangements, onUpdateStatus }) => {
 			}
 
 			// Process the approval/rejection
-			const response = await fetch('/api/withdraw/approve', {
+			const response = await fetch('/api/schedule/withdraw/approve', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',

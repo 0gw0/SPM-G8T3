@@ -85,7 +85,7 @@ export async function POST(req) {
 			message: `Withdrawal request ${action}d successfully`,
 		});
 	} catch (error) {
-		console.error('Unhandled error in POST /api/withdraw/approve:', error);
+		console.error('Unhandled error in POST /api/schedule/withdraw/approve:', error);
 		return NextResponse.json(
 			{
 				error: 'Internal server error',

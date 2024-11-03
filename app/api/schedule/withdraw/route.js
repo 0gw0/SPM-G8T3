@@ -98,7 +98,7 @@ export async function POST(req) {
 			data: updatedArrangements,
 		});
 	} catch (error) {
-		console.error('Unhandled error in POST /api/withdraw:', error);
+		console.error('Unhandled error in POST /api/schedule/withdraw:', error);
 		return NextResponse.json(
 			{
 				error: 'Internal server error',
