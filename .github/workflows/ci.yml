@@ -1,4 +1,3 @@
-# .github/workflows/ci.yml
 name: CI-Test-Pipeline
 
 on:
@@ -25,8 +24,12 @@ jobs:
       - name: Install dependencies
         run: npm install  # Install all project dependencies
 
-      - name: Run unit tests
-        run: npm test -- --testMatch "**/app/**/*.test.js"  # Run all unit test files
+      - name: Run unit tests with coverage
+        run: npm test -- --testMatch "**/app/**/*.test.js" --coverage  # Run all unit test files with coverage
 
-      - name: Run integration tests
-        run: npm test -- --testMatch "**/_tests_/integration_testing/**/*.test.js"  # Run all route test files
+      - name: Run integration tests with coverage
+        run: npm test -- --testMatch "**/_tests_/integration_testing/**/*.test.js" --coverage  # Run all route test files with coverage
+
+      - name: Check coverage threshold
+        run: |
+          npx jest --coverage --passWithNoTests --coverageThreshold="{\"global\":{\"branches\":80,\"lines\":80,\"statements\":80}}"

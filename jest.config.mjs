@@ -6,8 +6,8 @@ export default {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
-  testMatch: ['<rootDir>/_tests_/**/*.test.js'],  // Adjust this if needed based on your test file structure
-  collectCoverage: false,  // Enables coverage collection
+  testMatch: ['<rootDir>/_tests_/**/*.test.js','<rootDir>/app/api/**/*.test.js'],  // Adjust this if needed based on your test file structure
+  collectCoverage: true,  // Enables coverage collection
   collectCoverageFrom: ['app/api/schedule/**/*.js'],  // Specify the files for which you want to collect coverage
   coverageDirectory: 'coverage',  // Output folder for coverage reports
   coverageReporters: ['json', 'lcov', 'text', 'clover'],  // Formats for the coverage report
