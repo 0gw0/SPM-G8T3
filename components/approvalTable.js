@@ -385,7 +385,7 @@ const ApprovalTable = ({ arrangements: initialArrangements, isLoading }) => {
 
                         <div className="mt-4">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Rejection Reason:
+                                Rejection Reason(Only for rejection):
                             </label>
                             <textarea
                                 value={rejectionReason}
