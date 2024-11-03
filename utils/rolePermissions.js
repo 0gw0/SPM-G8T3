@@ -89,15 +89,12 @@ export const checkViewOwnPermission = (handler) => async (req) => {
         const { searchParams } = new URL(req.url);
         const employee_id = searchParams.get("employee_id");
 
-        if (
-            employee.role === 1 ||
-            employee.staff_id === parseInt(employee_id) ||
-            (employee.role === 3 &&
-                employee.staff_id === employee.reporting_manager)
-        ) {
-            return handler(req, user, employee);
-        }
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        console.log("employee_id:", employee_id);
+        console.log("employee role: ",employee.role)
+        console.log("employee.staff_id:", employee.staff_id)
+
+        return handler(req, user, employee);
+
     })(req);
 };
 
