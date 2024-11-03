@@ -132,10 +132,6 @@ const Calendar = ({ arrangements, onDatesChange }) => {
 				<span className="inline-block w-5 h-5 bg-yellow-400 mr-2"></span>
 				<span>Pending</span>
 			</div>
-			<div className="flex items-center">
-				<span className="inline-block w-5 h-5 bg-blue-500 mr-2"></span>
-				<span>Selected</span>
-			</div>
 		</div>
 	);
 
